@@ -27,8 +27,14 @@ class CrackPatches(Dataset):
                  seed=0, pos_frac=0.65, exclude_materials=(),
                  camera_aug=False, camera_profile="conveyor",
                  synth_dir=None, synth_frac=0.5, synth_kinds=None,
-                 scratch_frac=0.35, prep=None):
+                 scratch_frac=0.35, prep=None, resize=False):
         self.size, self.train, self.pos_frac = size, train, pos_frac
+        # Whole frame scaled to `size`, instead of a crack-centred crop at native scale.
+        # The crop path trains and scores on windows that always contain a defect, so it
+        # never sees the rest of the part -- applied to a whole surface the model painted
+        # 14x the true defect area. Resize is what app/inference.py does, so this makes
+        # the measured path and the deployed path the same one (T-02).
+        self.resize = resize
         # Built lazily: bench/preprocess.py composes ops into a closure, and Windows
         # spawns dataloader workers by pickling this object.
         self.prep, self._prep_fn = prep, None
@@ -231,7 +237,11 @@ class CrackPatches(Dataset):
             if img is None:
                 img = np.zeros((self.size, self.size, 3), np.uint8)
                 msk = np.zeros((self.size, self.size), np.uint8)
-            img, msk = self._crop(img, msk, rng, centre_on_crack=want_pos)
+            if self.resize:
+                img = cv2.resize(img, (self.size, self.size), cv2.INTER_LINEAR)
+                msk = cv2.resize(msk, (self.size, self.size), cv2.INTER_NEAREST)
+            else:
+                img, msk = self._crop(img, msk, rng, centre_on_crack=want_pos)
             if self.train:
                 img, msk = self._aug(img, msk, rng)
 

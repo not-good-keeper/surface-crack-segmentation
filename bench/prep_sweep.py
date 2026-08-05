@@ -89,17 +89,26 @@ HEAD = (f"{'op':<26}{'clDice':>8}{'delta':>9}{'IoU':>8}{'det':>7}"
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--tag", required=True)
+    ap.add_argument("--tag", help="stored run; omit when using --weights")
+    ap.add_argument("--weights", help="a .pt / .best.pt from a run still in flight")
+    ap.add_argument("--model", default="smpslim_timm-mobilenetv3_small_100")
+    ap.add_argument("--resize", action="store_true",
+                    help="score under the resize regime (must match how it trained)")
     ap.add_argument("--ops", nargs="*", help="restrict the grid; 'none' is always added")
     args = ap.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model, _, ds_kw = runs.load(args.tag, device)
+    if args.weights:
+        model, _, ds_kw = runs.load_weights(args.weights, args.model, 3, device,
+                                            camera_profile="conveyor",
+                                            resize=args.resize)
+    else:
+        model, _, ds_kw = runs.load(args.tag, device)
 
     specs = (["none"] + [o for o in args.ops if o != "none"] if args.ops
              else list(P.OPS) + ["+".join(p) for p in P.PAIRS])
     imgs, gts = cache(SELECT_SPLIT, ds_kw, BATCHES)
-    print(f"{args.tag}  select on '{SELECT_SPLIT}'  n={len(imgs)}\n")
+    print(f"{args.tag or Path(args.weights).stem}  select on '{SELECT_SPLIT}'  n={len(imgs)}\n")
     print(HEAD)
 
     base, results = None, []

@@ -91,6 +91,29 @@ def predict_split(model, ds, device, bs=32, thresh=0.5, max_batches=None,
     return np.concatenate(P), np.concatenate(G)
 
 
+@torch.no_grad()
+def eval_loss(model, ds, device, weight=None, classes=1, bs=32, max_batches=None):
+    """Mean loss on a split, under the identical loss the run trains with.
+
+    Reported beside the training loss because they answer different questions: training
+    loss falling while validation loss rises is overfitting, and no accuracy metric
+    shows that as directly. clDice can sit flat while the two losses diverge.
+    """
+    dl = DataLoader(ds, batch_size=bs, shuffle=False, num_workers=2, pin_memory=True)
+    model.eval()
+    tot, n = 0.0, 0
+    for bi, (x, y) in enumerate(dl):
+        if max_batches and bi >= max_batches:
+            break
+        x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
+        with torch.autocast("cuda", enabled=device.type == "cuda"):
+            out = model(x)
+            loss = dice_bce(out, y) if classes == 1 else dice_ce(out, y, weight=weight)
+        tot += float(loss)
+        n += 1
+    return tot / max(n, 1)
+
+
 def class_weights(ds, n_cls, device, cap=6.0):
     """Inverse-frequency weights from the training pool, capped.
 
@@ -181,6 +204,9 @@ def main() -> int:
     ap.add_argument("--eval-batches", type=int, default=40)
     ap.add_argument("--ema", type=float, default=0.0,
                     help="EMA decay on weights, e.g. 0.99; 0 disables")
+    ap.add_argument("--resize", action="store_true",
+                    help="scale the whole frame to 256 instead of cropping at native "
+                         "scale; matches app/inference.py (T-02)")
     ap.add_argument("--prep", default=None,
                     help="input transform from bench/preprocess.py, applied to train "
                          "and eval alike, e.g. 'bilateral' or 'flatten+clahe2'")
@@ -209,7 +235,8 @@ def main() -> int:
     print(f"=== {run} on {device} ===")
 
     ds_kw = dict(classes=args.classes, camera_profile=args.camera_profile,
-                 scratch_frac=args.scratch_frac, prep=args.prep)
+                 scratch_frac=args.scratch_frac, prep=args.prep,
+                 resize=args.resize)
     tr = CrackPatches("train", train=True, synth_dir=args.synth,
                       synth_frac=args.synth_frac, synth_kinds=args.synth_kinds,
                       exclude_materials=args.exclude_materials, seed=args.seed,
@@ -293,6 +320,9 @@ def main() -> int:
         mu = ev(Pu, Gu)
         m["unseen_cldice"] = mu["cldice"]
         m["unseen_iou"] = mu["iou"]
+        m["val_loss"] = eval_loss(eval_model, va, device, weight=cw,
+                                  classes=args.classes,
+                                  max_batches=args.eval_batches)
         m.update(epoch=ep, train_loss=tot / max(nb, 1), epoch_s=time.time() - t0)
         history.append(m)
         star = ""
@@ -313,7 +343,10 @@ def main() -> int:
                             "model": args.model, "classes": args.classes},
                            OUT / f"{run}.best.pt")
         m["lr"] = opt.param_groups[0]["lr"]
-        print(f"  ep{ep} loss={m['train_loss']:.4f} val_clD={m['cldice']:.4f} "
+        # gap = val - train. Rising while train falls is the overfitting signature.
+        gap = m["val_loss"] - m["train_loss"]
+        print(f"  ep{ep} loss={m['train_loss']:.4f} vloss={m['val_loss']:.4f} "
+              f"gap={gap:+.4f} val_clD={m['cldice']:.4f} "
               f"HEAD_clD={mu['cldice']:.4f} hIoU={mu['iou']:.4f} "
               f"det={mu['detect_rate']:.3f} fp={m['fp_area']:.5f} "
               f"lr={m['lr']:.2e} ({m['epoch_s']:.0f}s){star}", flush=True)
