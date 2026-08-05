@@ -98,7 +98,17 @@ def extract_regions(cmap, profile):
             area = int(stats[i, cv2.CC_STAT_AREA])
             if area < profile.min_area_px:
                 continue
-            comp = labels == i
+            # Work inside the component's own bounding box, not the whole frame.
+            # Skeleton length and maximum width are local properties, so the crop is
+            # exact rather than an approximation -- with a one-pixel margin so the
+            # distance transform sees background on every side, exactly as it would
+            # in the full image. Full-canvas masks made this O(regions x pixels): a
+            # 1262x900 frame with 67 regions took 3.5 s, nearly all of it here.
+            x0 = max(int(stats[i, cv2.CC_STAT_LEFT]) - 1, 0)
+            y0 = max(int(stats[i, cv2.CC_STAT_TOP]) - 1, 0)
+            x1 = min(x0 + int(stats[i, cv2.CC_STAT_WIDTH]) + 2, labels.shape[1])
+            y1 = min(y0 + int(stats[i, cv2.CC_STAT_HEIGHT]) + 2, labels.shape[0])
+            comp = labels[y0:y1, x0:x1] == i
             skel, length = _skeleton(comp)
             if skel.sum() < profile.min_skeleton_px:
                 continue

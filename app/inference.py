@@ -117,10 +117,39 @@ class Inspector:
         # metric, because both paths hand the graph the same tensor shape (T-02).
         self.resize_input = str(meta.get("resize", "1")).lower() in ("1", "true")
 
+        # Input side, also read from the graph. A model trained at 512 fed 256-px tiles
+        # sees every defect at half the width it learned, which is the same class of
+        # silent failure as the crop/resize mismatch and just as invisible: both shapes
+        # are valid input to a fully convolutional net. Older exports carry no `size`,
+        # and 256 is what they were all trained at.
+        try:
+            self.size = int(meta.get("size", SIZE))
+        except (TypeError, ValueError):
+            self.size = SIZE
+
+    def describe(self):
+        """-> the contract this graph declares about how it must be fed.
+
+        Read from the ONNX metadata rather than the filename. With more than one export
+        in circulation the differences that matter -- 256 vs 512 input, which input
+        transform, resize vs tile -- are invisible in a file listing, and picking the
+        wrong one costs accuracy silently because every export accepts the same tensor
+        shape. Surfaced through one method so the app, the batch CLI and the tests
+        cannot describe the same file differently.
+        """
+        return {
+            "file": self.model_path.name,
+            "classes": self.classes,
+            "input_size": self.size,
+            "prep": self.prep_spec or "none",
+            "input_mode": "resize whole frame" if self.resize_input
+                          else f"tiled at native scale ({self.size} px tiles)",
+        }
+
     def logits(self, image_bgr):
         """Single-tile logits by resize. Kept for the ONNX contract and for callers
         that genuinely want one 256x256 view; `probabilities` is the inspection path."""
-        x = preprocess(image_bgr, prep=self.prep)
+        x = preprocess(image_bgr, size=self.size, prep=self.prep)
         return self.sess.run(None, {self.input_name: x})[0][0]     # (C,H,W)
 
     def probabilities(self, image_bgr, stride=192, batch=8):
@@ -132,25 +161,27 @@ class Inspector:
         overlapping predictions are averaged, which also removes the seam a defect
         crossing a tile boundary would otherwise get.
         """
+        S = self.size
+        stride = min(stride, S)
         h, w = image_bgr.shape[:2]
-        pad_b, pad_r = max(SIZE - h, 0), max(SIZE - w, 0)
+        pad_b, pad_r = max(S - h, 0), max(S - w, 0)
         if pad_b or pad_r:
             image_bgr = cv2.copyMakeBorder(image_bgr, 0, pad_b, 0, pad_r,
                                            cv2.BORDER_REFLECT)
         H, W = image_bgr.shape[:2]
 
-        origins = tile_origins(H, W, SIZE, stride)
+        origins = tile_origins(H, W, S, stride)
         acc = np.zeros((3, H, W), np.float32)
         hits = np.zeros((H, W), np.float32)
         for i in range(0, len(origins), batch):
             chunk = origins[i:i + batch]
-            x = np.stack([normalise(image_bgr[y:y + SIZE, x0:x0 + SIZE], self.prep)
+            x = np.stack([normalise(image_bgr[y:y + S, x0:x0 + S], self.prep)
                           for y, x0 in chunk])
             out = self.sess.run(None, {self.input_name: x})[0]
             for (y, x0), lg in zip(chunk, out):
                 e = np.exp(lg - lg.max(axis=0, keepdims=True))
-                acc[:, y:y + SIZE, x0:x0 + SIZE] += e / e.sum(axis=0, keepdims=True)
-                hits[y:y + SIZE, x0:x0 + SIZE] += 1.0
+                acc[:, y:y + S, x0:x0 + S] += e / e.sum(axis=0, keepdims=True)
+                hits[y:y + S, x0:x0 + S] += 1.0
         prob = acc / np.maximum(hits, 1.0)
         return prob[:, :h, :w]
 
