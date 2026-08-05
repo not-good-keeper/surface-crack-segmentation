@@ -169,6 +169,61 @@ def test_app_and_batch_agree():
           "same processing profile recorded")
 
 
+def test_geometry_is_in_source_pixels():
+    """T-02 regression: a region's size is quoted in pixels of the submitted image.
+
+    This assertion is here because its absence cost us. The model runs on a 256x256
+    rescaling of the frame, and for a while every region's length and width came back
+    measured in that intermediate -- so a 512x700 part reported lengths half their true
+    value vertically and a third horizontally, with nothing in the output to say so. The
+    suite passed throughout, because every other test builds its own class map and never
+    asks what resolution the model's one came back at.
+
+    A defect length in the wrong units is worse than a missing one: it is a number an
+    operator will act on.
+    """
+    print("\nregion geometry is in source pixels, not model pixels")
+    try:
+        import onnxruntime  # noqa: F401
+    except ImportError:
+        print("  SKIP  onnxruntime not installed")
+        return
+    models = sorted((Path(__file__).resolve().parent.parent
+                     / "data/export").glob("*.onnx"))
+    if not models:
+        print("  SKIP  no exported model yet")
+        return
+    from inference import Inspector
+
+    insp = Inspector(models[0], Profile())
+    rng = np.random.default_rng(11)
+    base = rng.integers(0, 255, (256, 256, 3), dtype=np.uint8)
+
+    for shape in [(256, 256), (512, 700), (1262, 900), (180, 300)]:
+        img = cv2.resize(base, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)
+        _, ov, cmap = insp.inspect(img, b"x")
+        check(cmap.shape == shape,
+              f"{shape}: class map at source resolution (got {cmap.shape})")
+        check(ov.shape[:2] == shape,
+              f"{shape}: overlay at source resolution (got {ov.shape[:2]})")
+
+    # Same scene at two scales. What the model sees is near-identical, because both are
+    # rescaled to 256 before inference -- so the marked FRACTION of the part should
+    # match, while the pixel counts must not. Measured in model space both fractions
+    # would still match, but the shape checks above would already have failed; this adds
+    # that the answer travels back up sensibly rather than being cropped or padded.
+    small = cv2.resize(base, (300, 300), interpolation=cv2.INTER_LINEAR)
+    big = cv2.resize(base, (900, 900), interpolation=cv2.INTER_LINEAR)
+    _, _, cs = insp.inspect(small, b"x")
+    _, _, cb = insp.inspect(big, b"x")
+    fs, fb = (cs > 0).mean(), (cb > 0).mean()
+    check(abs(fs - fb) < 0.05,
+          f"defect fraction is scale-stable ({fs:.3f} at 300px vs {fb:.3f} at 900px)")
+    check((cb > 0).sum() > (cs > 0).sum(),
+          "the larger frame reports more defect PIXELS, as its resolution implies "
+          f"({(cs > 0).sum()} vs {(cb > 0).sum()})")
+
+
 if __name__ == "__main__":
     for t in (test_geometry_is_correct_by_construction,
               test_classes_are_mutually_exclusive,
@@ -177,6 +232,7 @@ if __name__ == "__main__":
               test_clean_product_is_explicit,
               test_determinism,
               test_overlay_survives_rescaling,
+              test_geometry_is_in_source_pixels,
               test_app_and_batch_agree):
         t()
     print(f"\n{'ALL PASSED' if not FAILURES else str(len(FAILURES)) + ' FAILURE(S)'}")
