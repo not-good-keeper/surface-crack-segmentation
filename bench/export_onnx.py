@@ -132,6 +132,9 @@ def main() -> int:
     ap.add_argument("--tag", default="",
                     help="suffix for the .onnx filename; REQUIRED to avoid "
                          "overwriting a differently-headed export of the same model")
+    ap.add_argument("--resize", action="store_true",
+                    help="the weights were trained on whole frames scaled to 256; "
+                         "stamped so the app feeds them the same way")
     ap.add_argument("--prep", default=None,
                     help="input transform the weights were trained with, stamped into "
                          "the graph metadata so app/inference.py applies it without "
@@ -151,7 +154,12 @@ def main() -> int:
         try:
             m = M.build(name, classes=args.classes)
             if args.weights and Path(args.weights).exists() and len(args.models) == 1:
-                m.load_state_dict(torch.load(args.weights, map_location="cpu"))
+                # A run's final `.pt` is a bare state dict; the `.best.pt` written on
+                # every improvement wraps it under "state". Both are legitimate things
+                # to export -- a run cut short by the clock only has the second.
+                blob = torch.load(args.weights, map_location="cpu")
+                m.load_state_dict(blob["state"] if isinstance(blob, dict)
+                                  and "state" in blob else blob)
             m.eval()
             params = M.count_params(m)
             # The head is part of what the file IS, not metadata about it. A 3-class
@@ -166,7 +174,8 @@ def main() -> int:
                               input_names=["input"], output_names=["logits"],
                               opset_version=17,
                               dynamic_axes={"input": {0: "b"}, "logits": {0: "b"}})
-            stamp(onnx_path, prep=args.prep or "", classes=args.classes)
+            stamp(onnx_path, prep=args.prep or "", classes=args.classes,
+                  resize=int(args.resize))
             par = check_parity(m, onnx_path, SIZE, args.classes)
             t_med, t_p90 = bench_torch_cpu(m, SIZE)
             o_med, o_p90 = bench_onnx(onnx_path, SIZE)

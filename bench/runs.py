@@ -27,6 +27,21 @@ def find(tag):
     raise SystemExit(f"no run tagged {tag!r} in {BENCH}")
 
 
+def load_weights(path, model_name, classes, device=None, **ds_kw):
+    """-> (model, {}, ds_kw) for a checkpoint with no run JSON beside it yet.
+
+    `.best.pt` is written every time a run improves, so this is how a run still in
+    flight can be evaluated. It wraps the state dict in a dict; a final `.pt` does not.
+    """
+    device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    blob = torch.load(path, map_location=device)
+    state = blob["state"] if isinstance(blob, dict) and "state" in blob else blob
+    model = M.build(model_name, classes=classes).to(device)
+    model.load_state_dict(state)
+    model.eval()
+    return model, {}, dict(classes=classes, **ds_kw)
+
+
 def load(tag, device=None):
     """-> (model in eval mode, run dict, dataset kwargs).
 
@@ -45,5 +60,6 @@ def load(tag, device=None):
     model.eval()
     ds_kw = dict(classes=classes,
                  camera_profile=run["args"].get("camera_profile", "conveyor"),
-                 prep=run["args"].get("prep"))
+                 prep=run["args"].get("prep"),
+                 resize=bool(run["args"].get("resize", False)))
     return model, run, ds_kw
