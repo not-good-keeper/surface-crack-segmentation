@@ -135,6 +135,9 @@ def main() -> int:
     ap.add_argument("--resize", action="store_true",
                     help="the weights were trained on whole frames scaled to 256; "
                          "stamped so the app feeds them the same way")
+    ap.add_argument("--size", type=int, default=SIZE,
+                    help="input edge the weights were trained at; stamped into the "
+                         "graph so the app feeds them the same scale")
     ap.add_argument("--prep", default=None,
                     help="input transform the weights were trained with, stamped into "
                          "the graph metadata so app/inference.py applies it without "
@@ -170,17 +173,18 @@ def main() -> int:
                 raise ValueError("--tag is required when --classes != 1, or this "
                                  "export would overwrite the binary one")
             onnx_path = OUT / f"{stem}.onnx"
-            torch.onnx.export(m, torch.randn(1, 3, SIZE, SIZE), str(onnx_path),
+            torch.onnx.export(m, torch.randn(1, 3, args.size, args.size), str(onnx_path),
                               input_names=["input"], output_names=["logits"],
                               opset_version=17,
                               dynamic_axes={"input": {0: "b"}, "logits": {0: "b"}})
             stamp(onnx_path, prep=args.prep or "", classes=args.classes,
-                  resize=int(args.resize))
-            par = check_parity(m, onnx_path, SIZE, args.classes)
-            t_med, t_p90 = bench_torch_cpu(m, SIZE)
-            o_med, o_p90 = bench_onnx(onnx_path, SIZE)
+                  resize=int(args.resize), size=args.size)
+            par = check_parity(m, onnx_path, args.size, args.classes)
+            t_med, t_p90 = bench_torch_cpu(m, args.size)
+            o_med, o_p90 = bench_onnx(onnx_path, args.size)
             mb = onnx_path.stat().st_size / 1e6
-            rows.append(dict(model=name, classes=args.classes, file=onnx_path.name,
+            rows.append(dict(model=name, classes=args.classes, size=args.size,
+                             file=onnx_path.name,
                              params_m=params / 1e6, onnx_mb=mb,
                              torch_cpu_ms=t_med, torch_p90=t_p90,
                              onnx_1thread_ms=o_med, onnx_p90=o_p90, parity=par))

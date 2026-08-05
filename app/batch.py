@@ -46,8 +46,11 @@ def main() -> int:
     if not paths:
         print(f"no images under {args.images}")
         return 1
+    spec = insp.describe()
     print(f"[batch] {len(paths)} images | model {insp.model_version} | "
           f"profile {profile.profile_id}")
+    print(f"[batch] model contract: {spec['input_size']} px input | "
+          f"prep {spec['prep']} | {spec['input_mode']} | {spec['classes']}-class")
 
     records, rows, audit, failed = [], [], [], 0
     for i, p in enumerate(paths, 1):

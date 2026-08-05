@@ -12,6 +12,7 @@ CLI also uses. Nothing is measured in this file.
 """
 import json
 import sys
+import time
 from pathlib import Path
 
 import cv2
@@ -65,6 +66,20 @@ def main():
 
     insp = get_inspector(str(model_path), ct, sct, int(min_area), int(min_skel),
                          station)
+
+    # More than one export can sit in data/export at once -- a 256 and a 512 model
+    # differ in nothing visible except the filename, and both accept the same tensor.
+    # The graph carries its own contract, so show it rather than let the operator infer
+    # it from a name someone chose by hand.
+    with st.sidebar:
+        st.header("Loaded model")
+        spec = insp.describe()
+        st.caption(f"**{spec['input_size']} px** input · prep `{spec['prep']}` · "
+                   f"{spec['input_mode']} · {spec['classes']}-class")
+        if spec["input_size"] >= 512:
+            st.caption("Higher input resolution keeps thin defects above the sampling "
+                       "limit, at roughly 4x the inference cost of 256.")
+
     if insp.sess.get_outputs()[0].shape[1] == 1:
         st.warning("This checkpoint has a **binary** head: it can only report cracks. "
                    "Every scratch it finds will be labelled `crack`. Load a 3-class "
@@ -84,11 +99,15 @@ def main():
             st.error(f"{f.name}: not a readable image — recorded as an acquisition "
                      f"failure, not as a clean product.")
             continue
+        t0 = time.perf_counter()
         rec, ov, _ = insp.inspect(img, raw, product_id=f.name)
+        elapsed_ms = (time.perf_counter() - t0) * 1000
         records.append(rec)
         all_rows += record_to_rows(rec)
 
         st.subheader(f.name)
+        st.caption(f"{img.shape[1]}x{img.shape[0]} px · inspected in "
+                   f"{elapsed_ms:.0f} ms on CPU")
         c1, c2 = st.columns(2)
         c1.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption="capture",
                  use_container_width=True)
