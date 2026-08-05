@@ -1,0 +1,128 @@
+{
+ "run": "tinyseg_w8_d5_ts",
+ "model": "tinyseg_w8_d5",
+ "tag": "ts",
+ "args": {
+  "model": "tinyseg_w8_d5",
+  "epochs": 4,
+  "batch": 48,
+  "lr": 0.0003,
+  "train_steps": 250,
+  "synth": "data/synth",
+  "synth_frac": 0.45,
+  "exclude_materials": [],
+  "camera_aug": true,
+  "tag": "ts",
+  "seed": 1337,
+  "eval_batches": 40
+ },
+ "history": [
+  {
+   "iou": 0.1736109401077132,
+   "dice": 0.26234947420824745,
+   "cldice": 0.2347051989987194,
+   "tf1@2": 0.33797118102373513,
+   "detect_rate": 0.9875,
+   "fp_area": 0.3904543161392212,
+   "fp_image_rate": 0.8890625,
+   "n_pos": 640,
+   "n_neg": 640,
+   "epoch": 1,
+   "train_loss": 1.66325590801239,
+   "epoch_s": 77.12506365776062
+  },
+  {
+   "iou": 0.262822071194135,
+   "dice": 0.37335036771834146,
+   "cldice": 0.38360343343193354,
+   "tf1@2": 0.4818993010526874,
+   "detect_rate": 0.98125,
+   "fp_area": 0.24080276489257812,
+   "fp_image_rate": 0.859375,
+   "n_pos": 640,
+   "n_neg": 640,
+   "epoch": 2,
+   "train_loss": 1.4982701816558839,
+   "epoch_s": 62.9236114025116
+  },
+  {
+   "iou": 0.1483435459565287,
+   "dice": 0.22910693129226206,
+   "cldice": 0.23975602254999204,
+   "tf1@2": 0.366049589631502,
+   "detect_rate": 0.93125,
+   "fp_area": 0.019282722473144533,
+   "fp_image_rate": 0.6609375,
+   "n_pos": 640,
+   "n_neg": 640,
+   "epoch": 3,
+   "train_loss": 1.3701700291633605,
+   "epoch_s": 61.196622133255005
+  },
+  {
+   "iou": 0.26913229810598394,
+   "dice": 0.38317120563580065,
+   "cldice": 0.4084829170754084,
+   "tf1@2": 0.49225763926956,
+   "detect_rate": 0.903125,
+   "fp_area": 0.03830442428588867,
+   "fp_image_rate": 0.765625,
+   "n_pos": 640,
+   "n_neg": 640,
+   "epoch": 4,
+   "train_loss": 1.2477530450820924,
+   "epoch_s": 61.98569345474243
+  }
+ ],
+ "train_s": 263.23099064826965,
+ "test_seen": {
+  "iou": 0.25676870761410797,
+  "dice": 0.3714760374148281,
+  "cldice": 0.4090359640449995,
+  "tf1@2": 0.48900412876591504,
+  "detect_rate": 0.9175,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1200,
+  "n_neg": 0
+ },
+ "baseline_all_background": {
+  "iou": 0.0,
+  "dice": 0.0,
+  "cldice": 0.0,
+  "tf1@2": 0.0,
+  "detect_rate": 0.0,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1200,
+  "n_neg": 0,
+  "pixel_accuracy": 0.9482302220662435
+ },
+ "test_unseen_material": {
+  "iou": 0.042290053981445135,
+  "dice": 0.0733719086800268,
+  "cldice": 0.13379402826388467,
+  "tf1@2": 0.14133659181530003,
+  "detect_rate": 0.5795847750865052,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1156,
+  "n_neg": 0
+ },
+ "test_negatives": {
+  "iou": NaN,
+  "dice": NaN,
+  "cldice": NaN,
+  "tf1@2": NaN,
+  "detect_rate": 0.0,
+  "fp_area": 0.03595168590545654,
+  "fp_image_rate": 0.7125,
+  "n_pos": 0,
+  "n_neg": 1280
+ },
+ "cost": {
+  "params": 141025,
+  "cpu_ms": 20.48775999999748,
+  "gpu_ms": 3.4512700000021823
+ }
+}

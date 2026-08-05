@@ -1,0 +1,450 @@
+{
+ "run": "smpslim_timm-mobilenetv3_small_100_C3V6_11",
+ "model": "smpslim_timm-mobilenetv3_small_100",
+ "tag": "C3V6_11",
+ "args": {
+  "model": "smpslim_timm-mobilenetv3_small_100",
+  "epochs": 2,
+  "batch": 48,
+  "lr": 0.0003,
+  "train_steps": 600,
+  "synth": "data/synth,data/df_patches2",
+  "synth_frac": 0.45,
+  "exclude_materials": [],
+  "camera_aug": true,
+  "camera_profile": "conveyor",
+  "classes": 3,
+  "synth_kinds": "crack,scratch,negative",
+  "headline_split": "test_factory",
+  "class_weight_cap": 6.0,
+  "scratch_frac": 0.35,
+  "tag": "C3V6_11",
+  "seed": 11,
+  "eval_batches": 40,
+  "ema": 0.995,
+  "save": true
+ },
+ "history": [
+  {
+   "iou": 0.41973272312335863,
+   "dice": 0.5624218391692499,
+   "cldice": 0.5993112392617278,
+   "tf1@2": 0.7059050349584128,
+   "detect_rate": 0.984375,
+   "fp_area": 0.010862112045288086,
+   "fp_image_rate": 0.5875,
+   "n_pos": 640,
+   "n_neg": 640,
+   "unseen_cldice": 0.6358623948358936,
+   "unseen_iou": 0.42536826941556705,
+   "epoch": 1,
+   "train_loss": 1.0935983617107075,
+   "epoch_s": 283.87048053741455
+  },
+  {
+   "iou": 0.4263942486861831,
+   "dice": 0.5684530580838727,
+   "cldice": 0.6250483748956863,
+   "tf1@2": 0.7118540173735648,
+   "detect_rate": 0.98125,
+   "fp_area": 0.01002202033996582,
+   "fp_image_rate": 0.2984375,
+   "n_pos": 640,
+   "n_neg": 640,
+   "unseen_cldice": 0.6096619366737079,
+   "unseen_iou": 0.39080475798196956,
+   "epoch": 2,
+   "train_loss": 0.6604465539753437,
+   "epoch_s": 249.8200216293335
+  }
+ ],
+ "train_s": 533.6925082206726,
+ "test_factory": {
+  "crack": {
+   "iou": 0.30048555012196854,
+   "dice": 0.4290367561246704,
+   "cldice": 0.4880662659418488,
+   "tf1@2": 0.5761170099925024,
+   "detect_rate": 0.8658536585365854,
+   "fp_area": NaN,
+   "fp_image_rate": 0.0,
+   "n_pos": 164,
+   "n_neg": 0
+  },
+  "scratch": {
+   "iou": NaN,
+   "dice": NaN,
+   "cldice": NaN,
+   "tf1@2": NaN,
+   "detect_rate": 0.0,
+   "fp_area": 0.007085288443216463,
+   "fp_image_rate": 0.17682926829268292,
+   "n_pos": 0,
+   "n_neg": 164
+  },
+  "confusion_defect_px": [
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    205784,
+    551671,
+    62764
+   ],
+   [
+    0,
+    0,
+    0
+   ]
+  ],
+  "class_names": [
+   "background",
+   "crack",
+   "scratch"
+  ],
+  "crack_class_recall": 0.6725898814828722,
+  "scratch_class_recall": NaN,
+  "any_defect": {
+   "iou": 0.39080475798196956,
+   "dice": 0.5379468264899527,
+   "cldice": 0.6096619366737079,
+   "tf1@2": 0.7043064537668795,
+   "detect_rate": 0.9878048780487805,
+   "fp_area": NaN,
+   "fp_image_rate": 0.0,
+   "n_pos": 164,
+   "n_neg": 0
+  },
+  "iou": 0.39080475798196956,
+  "dice": 0.5379468264899527,
+  "cldice": 0.6096619366737079,
+  "tf1@2": 0.7043064537668795,
+  "detect_rate": 0.9878048780487805,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 164,
+  "n_neg": 0
+ },
+ "baseline_all_background": {
+  "iou": 0.0,
+  "dice": 0.0,
+  "cldice": 0.0,
+  "tf1@2": 0.0,
+  "detect_rate": 0.0,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 164,
+  "n_neg": 0,
+  "pixel_accuracy": 0.9236856786216178
+ },
+ "test_factory_scratch": {
+  "crack": {
+   "iou": NaN,
+   "dice": NaN,
+   "cldice": NaN,
+   "tf1@2": NaN,
+   "detect_rate": 0.0,
+   "fp_area": 0.0,
+   "fp_image_rate": 0.0,
+   "n_pos": 0,
+   "n_neg": 156
+  },
+  "scratch": {
+   "iou": 0.6382734820420831,
+   "dice": 0.7670949919849467,
+   "cldice": 0.8904919397201179,
+   "tf1@2": 0.9187809686523855,
+   "detect_rate": 0.9935897435897436,
+   "fp_area": NaN,
+   "fp_image_rate": 0.0,
+   "n_pos": 156,
+   "n_neg": 0
+  },
+  "confusion_defect_px": [
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    41963,
+    0,
+    373108
+   ]
+  ],
+  "class_names": [
+   "background",
+   "crack",
+   "scratch"
+  ],
+  "crack_class_recall": NaN,
+  "scratch_class_recall": 0.8989016336964037,
+  "any_defect": {
+   "iou": 0.6382734820420831,
+   "dice": 0.7670949919849467,
+   "cldice": 0.8904919397201179,
+   "tf1@2": 0.9187809686523855,
+   "detect_rate": 0.9935897435897436,
+   "fp_area": NaN,
+   "fp_image_rate": 0.0,
+   "n_pos": 156,
+   "n_neg": 0
+  },
+  "iou": 0.6382734820420831,
+  "dice": 0.7670949919849467,
+  "cldice": 0.8904919397201179,
+  "tf1@2": 0.9187809686523855,
+  "detect_rate": 0.9935897435897436,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 156,
+  "n_neg": 0
+ },
+ "test_scratch_blob": {
+  "confusion_defect_px": [
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    889716,
+    11232,
+    88
+   ]
+  ],
+  "class_names": [
+   "background",
+   "crack",
+   "scratch"
+  ],
+  "crack_class_recall": NaN,
+  "scratch_class_recall": 9.766535410349863e-05,
+  "detect_rate": 0.3,
+  "n_pos": 100,
+  "n_neg": 0,
+  "note": "geometry metrics withheld: wide-region mask convention, detection and class only"
+ },
+ "test_seen": {
+  "crack": {
+   "iou": 0.4124128702723387,
+   "dice": 0.5537371822904872,
+   "cldice": 0.6280205575221853,
+   "tf1@2": 0.7118475153906078,
+   "detect_rate": 0.9565619223659889,
+   "fp_area": NaN,
+   "fp_image_rate": 0.0,
+   "n_pos": 1082,
+   "n_neg": 0
+  },
+  "scratch": {
+   "iou": NaN,
+   "dice": NaN,
+   "cldice": NaN,
+   "tf1@2": NaN,
+   "detect_rate": 0.0,
+   "fp_area": 9.928084565619223e-05,
+   "fp_image_rate": 0.006469500924214418,
+   "n_pos": 0,
+   "n_neg": 1082
+  },
+  "confusion_defect_px": [
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    796056,
+    3332107,
+    3913
+   ],
+   [
+    0,
+    0,
+    0
+   ]
+  ],
+  "class_names": [
+   "background",
+   "crack",
+   "scratch"
+  ],
+  "crack_class_recall": 0.8064002210995151,
+  "scratch_class_recall": NaN,
+  "any_defect": {
+   "iou": 0.4146357524997151,
+   "dice": 0.5567571706163618,
+   "cldice": 0.6317194311236023,
+   "tf1@2": 0.7160827777215204,
+   "detect_rate": 0.9611829944547134,
+   "fp_area": NaN,
+   "fp_image_rate": 0.0,
+   "n_pos": 1082,
+   "n_neg": 0
+  },
+  "iou": 0.4146357524997151,
+  "dice": 0.5567571706163618,
+  "cldice": 0.6317194311236023,
+  "tf1@2": 0.7160827777215204,
+  "detect_rate": 0.9611829944547134,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1082,
+  "n_neg": 0
+ },
+ "test_unseen_material": {
+  "crack": {
+   "iou": 0.05314590357039162,
+   "dice": 0.0864501862016336,
+   "cldice": 0.16402882832840432,
+   "tf1@2": 0.15258334249931124,
+   "detect_rate": 0.4005190311418685,
+   "fp_area": NaN,
+   "fp_image_rate": 0.0,
+   "n_pos": 1156,
+   "n_neg": 0
+  },
+  "scratch": {
+   "iou": NaN,
+   "dice": NaN,
+   "cldice": NaN,
+   "tf1@2": NaN,
+   "detect_rate": 0.0,
+   "fp_area": 0.000729847944319042,
+   "fp_image_rate": 0.08996539792387544,
+   "n_pos": 0,
+   "n_neg": 1156
+  },
+  "confusion_defect_px": [
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    2338251,
+    146360,
+    54404
+   ],
+   [
+    0,
+    0,
+    0
+   ]
+  ],
+  "class_names": [
+   "background",
+   "crack",
+   "scratch"
+  ],
+  "crack_class_recall": 0.05764440147064905,
+  "scratch_class_recall": NaN,
+  "any_defect": {
+   "iou": 0.0680961109329109,
+   "dice": 0.11060038071070852,
+   "cldice": 0.21357832041660357,
+   "tf1@2": 0.19733115971901655,
+   "detect_rate": 0.4913494809688581,
+   "fp_area": NaN,
+   "fp_image_rate": 0.0,
+   "n_pos": 1156,
+   "n_neg": 0
+  },
+  "iou": 0.0680961109329109,
+  "dice": 0.11060038071070852,
+  "cldice": 0.21357832041660357,
+  "tf1@2": 0.19733115971901655,
+  "detect_rate": 0.4913494809688581,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1156,
+  "n_neg": 0
+ },
+ "test_negatives": {
+  "crack": {
+   "iou": NaN,
+   "dice": NaN,
+   "cldice": NaN,
+   "tf1@2": NaN,
+   "detect_rate": 0.0,
+   "fp_area": 0.0074369549751281735,
+   "fp_image_rate": 0.1859375,
+   "n_pos": 0,
+   "n_neg": 1280
+  },
+  "scratch": {
+   "iou": NaN,
+   "dice": NaN,
+   "cldice": NaN,
+   "tf1@2": NaN,
+   "detect_rate": 0.0,
+   "fp_area": 0.0026134133338928224,
+   "fp_image_rate": 0.05859375,
+   "n_pos": 0,
+   "n_neg": 1280
+  },
+  "confusion_defect_px": [
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0
+   ]
+  ],
+  "class_names": [
+   "background",
+   "crack",
+   "scratch"
+  ],
+  "crack_class_recall": NaN,
+  "scratch_class_recall": NaN,
+  "any_defect": {
+   "iou": NaN,
+   "dice": NaN,
+   "cldice": NaN,
+   "tf1@2": NaN,
+   "detect_rate": 0.0,
+   "fp_area": 0.010050368309020997,
+   "fp_image_rate": 0.2390625,
+   "n_pos": 0,
+   "n_neg": 1280
+  },
+  "iou": NaN,
+  "dice": NaN,
+  "cldice": NaN,
+  "tf1@2": NaN,
+  "detect_rate": 0.0,
+  "fp_area": 0.010050368309020997,
+  "fp_image_rate": 0.2390625,
+  "n_pos": 0,
+  "n_neg": 1280
+ },
+ "cost": {
+  "params": 1432179,
+  "cpu_ms": 22.899889999996503,
+  "gpu_ms": 10.467360000001236
+ },
+ "checkpoint": "D:\\rvcv\\data\\bench\\smpslim_timm-mobilenetv3_small_100_C3V6_11.pt"
+}

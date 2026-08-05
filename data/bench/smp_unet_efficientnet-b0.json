@@ -1,0 +1,99 @@
+{
+ "run": "smp_unet_efficientnet-b0",
+ "model": "smp_unet_efficientnet-b0",
+ "tag": "",
+ "args": {
+  "model": "smp_unet_efficientnet-b0",
+  "epochs": 2,
+  "batch": 32,
+  "lr": 0.0003,
+  "train_steps": 250,
+  "synth": "data/synth",
+  "synth_frac": 0.45,
+  "exclude_materials": [],
+  "tag": "",
+  "seed": 1337,
+  "eval_batches": 40
+ },
+ "history": [
+  {
+   "iou": 0.44333786491094307,
+   "dice": 0.5818104541565224,
+   "cldice": 0.6551221712501845,
+   "tf1@2": 0.7272907723465296,
+   "detect_rate": 0.9890625,
+   "fp_area": 0.022522664070129393,
+   "fp_image_rate": 0.646875,
+   "n_pos": 640,
+   "n_neg": 640,
+   "epoch": 1,
+   "train_loss": 1.0496728665828705,
+   "epoch_s": 77.518306016922
+  },
+  {
+   "iou": 0.47392276756599827,
+   "dice": 0.6088340968694655,
+   "cldice": 0.675754450059735,
+   "tf1@2": 0.76578756252246,
+   "detect_rate": 0.965625,
+   "fp_area": 0.004234004020690918,
+   "fp_image_rate": 0.31875,
+   "n_pos": 640,
+   "n_neg": 640,
+   "epoch": 2,
+   "train_loss": 0.7016388084888459,
+   "epoch_s": 61.992140769958496
+  }
+ ],
+ "train_s": 139.51344847679138,
+ "test_seen": {
+  "iou": 0.4369882490246142,
+  "dice": 0.5779142733831696,
+  "cldice": 0.6666397561710208,
+  "tf1@2": 0.7591366715870624,
+  "detect_rate": 0.9675,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1200,
+  "n_neg": 0
+ },
+ "baseline_all_background": {
+  "iou": 0.0,
+  "dice": 0.0,
+  "cldice": 0.0,
+  "tf1@2": 0.0,
+  "detect_rate": 0.0,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1200,
+  "n_neg": 0,
+  "pixel_accuracy": 0.9482302220662435
+ },
+ "test_unseen_material": {
+  "iou": 0.07998416697766579,
+  "dice": 0.13762611164082192,
+  "cldice": 0.29990292145155695,
+  "tf1@2": 0.28937343599587045,
+  "detect_rate": 0.7794117647058824,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1156,
+  "n_neg": 0
+ },
+ "test_negatives": {
+  "iou": NaN,
+  "dice": NaN,
+  "cldice": NaN,
+  "tf1@2": NaN,
+  "detect_rate": 0.0,
+  "fp_area": 0.003783559799194336,
+  "fp_image_rate": 0.2765625,
+  "n_pos": 0,
+  "n_neg": 1280
+ },
+ "cost": {
+  "params": 6251469,
+  "cpu_ms": 69.0785500000004,
+  "gpu_ms": 14.05616499999951
+ }
+}

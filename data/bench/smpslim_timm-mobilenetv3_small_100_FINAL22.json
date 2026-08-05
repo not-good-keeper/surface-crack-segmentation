@@ -1,0 +1,123 @@
+{
+ "run": "smpslim_timm-mobilenetv3_small_100_FINAL22",
+ "model": "smpslim_timm-mobilenetv3_small_100",
+ "tag": "FINAL22",
+ "args": {
+  "model": "smpslim_timm-mobilenetv3_small_100",
+  "epochs": 3,
+  "batch": 48,
+  "lr": 0.0003,
+  "train_steps": 250,
+  "synth": "data/synth",
+  "synth_frac": 0.45,
+  "exclude_materials": [],
+  "camera_aug": true,
+  "tag": "FINAL22",
+  "seed": 22,
+  "eval_batches": 60,
+  "ema": 0.995,
+  "save": true
+ },
+ "history": [
+  {
+   "iou": 0.3452890171597313,
+   "dice": 0.47428896252000785,
+   "cldice": 0.521681660278412,
+   "tf1@2": 0.6450966239554904,
+   "detect_rate": 0.9653631284916201,
+   "fp_area": 0.006891329461635824,
+   "fp_image_rate": 0.5039106145251396,
+   "n_pos": 895,
+   "n_neg": 895,
+   "unseen_cldice": 0.08711606696476623,
+   "unseen_iou": 0.026545460173028935,
+   "epoch": 1,
+   "train_loss": 0.9454611494541169,
+   "epoch_s": 116.96262240409851
+  },
+  {
+   "iou": 0.45644292130453346,
+   "dice": 0.5946984709295988,
+   "cldice": 0.6701329569841599,
+   "tf1@2": 0.7592597448357487,
+   "detect_rate": 0.9698324022346368,
+   "fp_area": 0.0038801992405726256,
+   "fp_image_rate": 0.4223463687150838,
+   "n_pos": 895,
+   "n_neg": 895,
+   "unseen_cldice": 0.409467245555451,
+   "unseen_iou": 0.12986189188122674,
+   "epoch": 2,
+   "train_loss": 0.6924687068462372,
+   "epoch_s": 96.91325235366821
+  },
+  {
+   "iou": 0.47352663532426176,
+   "dice": 0.6128255823500988,
+   "cldice": 0.6892873583369448,
+   "tf1@2": 0.776387782324059,
+   "detect_rate": 0.9743016759776536,
+   "fp_area": 0.003923486464516411,
+   "fp_image_rate": 0.3865921787709497,
+   "n_pos": 895,
+   "n_neg": 895,
+   "unseen_cldice": 0.6334503152368031,
+   "unseen_iou": 0.2304974598172979,
+   "epoch": 3,
+   "train_loss": 0.6509860054254532,
+   "epoch_s": 95.52859330177307
+  }
+ ],
+ "train_s": 309.40673661231995,
+ "test_seen": {
+  "iou": 0.47941130480871447,
+  "dice": 0.6210378367111973,
+  "cldice": 0.7025507261722562,
+  "tf1@2": 0.7865631823715981,
+  "detect_rate": 0.9816666666666667,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1200,
+  "n_neg": 0
+ },
+ "baseline_all_background": {
+  "iou": 0.0,
+  "dice": 0.0,
+  "cldice": 0.0,
+  "tf1@2": 0.0,
+  "detect_rate": 0.0,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1200,
+  "n_neg": 0,
+  "pixel_accuracy": 0.9482302220662435
+ },
+ "test_unseen_material": {
+  "iou": 0.2304974598172979,
+  "dice": 0.3571383915841316,
+  "cldice": 0.6334503152368031,
+  "tf1@2": 0.578840322165962,
+  "detect_rate": 0.9377162629757786,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1156,
+  "n_neg": 0
+ },
+ "test_negatives": {
+  "iou": NaN,
+  "dice": NaN,
+  "cldice": NaN,
+  "tf1@2": NaN,
+  "detect_rate": 0.0,
+  "fp_area": 0.0037709554036458332,
+  "fp_image_rate": 0.33645833333333336,
+  "n_pos": 0,
+  "n_neg": 1920
+ },
+ "cost": {
+  "params": 0,
+  "cpu_ms": 22.073330000000624,
+  "gpu_ms": 9.612574999999879
+ },
+ "checkpoint": "D:\\rvcv\\data\\bench\\smpslim_timm-mobilenetv3_small_100_FINAL22.pt"
+}

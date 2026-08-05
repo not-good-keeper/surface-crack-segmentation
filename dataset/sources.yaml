@@ -1,0 +1,343 @@
+# Source registry for the TinySeg crack dataset.
+#
+# tier:  A = true cracks -> positives
+#        B = crack-LIKE but NOT cracks (scratches, seams, mould lines) -> hard negatives
+#        C = defect-free surfaces -> pure negatives / synthesis backgrounds
+#
+# verified: true  = byte-checked in this session (HTTP range GET succeeded, size confirmed)
+#           false = search-sourced; fetch.py records the hash on first run and fails loudly later
+#
+# sha256: null means "unknown, record on first download". Once recorded in
+#         data/raw/.lock.json, every later run verifies against it.
+
+defaults:
+  raw_dir: data/raw
+
+sources:
+
+  # ---------------------------------------------------------------- Tier A backbone
+  crackseg9k_vol1:
+    url: https://dataverse.harvard.edu/api/access/datafile/10273101
+    filename: Final-Dataset-Vol1.zip
+    bytes: 1545242194
+    sha256: null
+    verified: true
+    tier: A
+    license: CC0-1.0
+    commercial_ok: true
+    materials: [concrete, asphalt, masonry, ceramic, building]
+    cite: "CrackSeg9k v4, doi:10.7910/DVN/EGIEBY"
+    enabled: true
+
+  crackseg9k_vol2:
+    url: https://dataverse.harvard.edu/api/access/datafile/10273100
+    filename: Final-Dataset-Vol2.zip
+    bytes: 1257422563
+    sha256: null
+    verified: true
+    tier: A
+    license: CC0-1.0
+    commercial_ok: true
+    materials: [concrete, asphalt, masonry, ceramic, building]
+    cite: "CrackSeg9k v4, doi:10.7910/DVN/EGIEBY"
+    enabled: true
+
+  # ---------------------------------------------------------------- Tier A wood
+  # Masks for ALL 20,276 images cost only 207 MB. Download these FIRST, work out
+  # which shards actually carry crack-class pixels, then pull only those shards.
+  wood_semantic_maps:
+    url: https://zenodo.org/api/records/4694695/files/Semantic%20Maps.zip/content
+    filename: Wood_Semantic_Maps.zip
+    bytes: 207099270
+    sha256: null
+    verified: true
+    tier: A
+    license: CC-BY-4.0
+    commercial_ok: true
+    materials: [wood]
+    cite: "Kodytek et al., doi:10.5281/zenodo.4694695"
+    enabled: true
+
+  wood_spec:
+    url: https://zenodo.org/api/records/4694695/files/Semantic%20Map%20Specification.txt/content
+    filename: Wood_Semantic_Map_Specification.txt
+    bytes: null
+    sha256: null
+    verified: true
+    tier: A
+    license: CC-BY-4.0
+    commercial_ok: true
+    materials: [wood]
+    enabled: true
+
+  # Image shards are ~15.3 GB each; 10 of them = ~155 GB. Enabled selectively by
+  # dataset/wood_yield.py after the semantic maps are parsed. DO NOT enable all.
+  # Exact byte sizes from the Zenodo API. All disabled; dataset/wood_yield.py
+  # enables only the shards that actually carry crack-class pixels.
+  wood_images1:  {url: "https://zenodo.org/api/records/4694695/files/Images1.zip/content",  filename: Wood_Images1.zip,  bytes: 15282458754, sha256: null, verified: true, tier: A, license: CC-BY-4.0, commercial_ok: true, materials: [wood], enabled: false, shard: 1}
+  wood_images2:  {url: "https://zenodo.org/api/records/4694695/files/Images2.zip/content",  filename: Wood_Images2.zip,  bytes: 15347429322, sha256: null, verified: true, tier: A, license: CC-BY-4.0, commercial_ok: true, materials: [wood], enabled: false, shard: 2}
+  wood_images3:  {url: "https://zenodo.org/api/records/4694695/files/Images3.zip/content",  filename: Wood_Images3.zip,  bytes: 15433571840, sha256: null, verified: true, tier: A, license: CC-BY-4.0, commercial_ok: true, materials: [wood], enabled: false, shard: 3}
+  wood_images4:  {url: "https://zenodo.org/api/records/4694695/files/Images4.zip/content",  filename: Wood_Images4.zip,  bytes: 15453213259, sha256: null, verified: true, tier: A, license: CC-BY-4.0, commercial_ok: true, materials: [wood], enabled: false, shard: 4}
+  wood_images5:  {url: "https://zenodo.org/api/records/4694695/files/Images5.zip/content",  filename: Wood_Images5.zip,  bytes: 15458835917, sha256: null, verified: true, tier: A, license: CC-BY-4.0, commercial_ok: true, materials: [wood], enabled: false, shard: 5}
+  wood_images6:  {url: "https://zenodo.org/api/records/4694695/files/Images6.zip/content",  filename: Wood_Images6.zip,  bytes: 15476360976, sha256: null, verified: true, tier: A, license: CC-BY-4.0, commercial_ok: true, materials: [wood], enabled: false, shard: 6}
+  wood_images7:  {url: "https://zenodo.org/api/records/4694695/files/Images7.zip/content",  filename: Wood_Images7.zip,  bytes: 15434361993, sha256: null, verified: true, tier: A, license: CC-BY-4.0, commercial_ok: true, materials: [wood], enabled: false, shard: 7}
+  wood_images8:  {url: "https://zenodo.org/api/records/4694695/files/Images8.zip/content",  filename: Wood_Images8.zip,  bytes: 15434281845, sha256: null, verified: true, tier: A, license: CC-BY-4.0, commercial_ok: true, materials: [wood], enabled: false, shard: 8}
+  wood_images9:  {url: "https://zenodo.org/api/records/4694695/files/Images9.zip/content",  filename: Wood_Images9.zip,  bytes: 15417967377, sha256: null, verified: true, tier: A, license: CC-BY-4.0, commercial_ok: true, materials: [wood], enabled: false, shard: 9}
+  wood_images10: {url: "https://zenodo.org/api/records/4694695/files/Images10.zip/content", filename: Wood_Images10.zip, bytes: 17604902889, sha256: null, verified: true, tier: A, license: CC-BY-4.0, commercial_ok: true, materials: [wood], enabled: false, shard: 10}
+
+  # ---------------------------------------------------------------- Tier A/B/C small
+  magnetic_tile:
+    url: https://github.com/abin24/Magnetic-tile-defect-datasets./archive/refs/heads/master.zip
+    filename: MagneticTile.zip
+    bytes: null
+    sha256: null
+    verified: false
+    tier: A
+    license: unknown-check-at-fetch
+    commercial_ok: null
+    materials: [ceramic]
+    notes: "crack/ subset -> positives; free/ subset -> Tier C negatives"
+    enabled: true
+
+  dtd:
+    url: https://thor.robots.ox.ac.uk/~vgg/data/dtd/dtd-r1.0.1.tar.gz
+    filename: dtd-r1.0.1.tar.gz
+    bytes: null
+    sha256: null
+    verified: false
+    tier: C
+    license: research-only
+    commercial_ok: false
+    materials: [mixed]
+    notes: "EXCLUDE the 'cracked' category - real cracks would poison the negative pool"
+    enabled: true
+
+  kolektorsdd2:
+    url: https://go.vicos.si/kolektorsdd2
+    filename: KolektorSDD2.zip
+    bytes: null
+    sha256: null
+    verified: false
+    tier: B
+    license: CC-BY-NC-SA-4.0
+    commercial_ok: false
+    materials: [metal, plastic]
+    notes: "356 defect masks -> hard negatives; 2979 clean -> Tier C"
+    enabled: true
+
+# ------------------------------------------------------------------ Kaggle
+# Fetched through the kaggle CLI, not plain HTTP. Competition datasets additionally
+# require accepting the rules on the website; a 403 there is a consent gate, not a
+# broken credential.
+kaggle:
+  severstal:
+    ref: severstal-steel-defect-detection
+    kind: competition
+    tier: B
+    materials: [steel]
+    license: competition-rules
+    commercial_ok: false
+    notes: >
+      The 4 classes are mostly scale/patches/scratches, NOT cracks. Import as hard
+      negatives and steel backgrounds only. Never as positives.
+    enabled: true
+
+  neu_seg:
+    ref: kaustubhdikshit/neu-surface-defect-database
+    kind: dataset
+    tier: A
+    materials: [steel]
+    license: research
+    commercial_ok: false
+    notes: "'crazing' class is a genuine crack network -> the real steel positive. Others -> hard negatives."
+    enabled: true
+
+  gc10det:
+    ref: alex000kim/gc10det
+    kind: dataset
+    tier: C
+    materials: [metal]
+    license: research
+    commercial_ok: false
+    enabled: true
+
+  sdnet2018:
+    ref: aniruddhsharma/structural-defects-network-concrete-crack-images
+    kind: dataset
+    tier: C
+    materials: [concrete]
+    license: open
+    commercial_ok: true
+    notes: "classification-only; the non-crack half is a large clean concrete pool"
+    enabled: true
+
+  concrete_ozgenel:
+    ref: arunrk7/surface-crack-detection
+    kind: dataset
+    tier: C
+    materials: [concrete]
+    license: open
+    commercial_ok: true
+    notes: "classification-only, 40k; Negative/ folder -> clean concrete"
+    enabled: true
+
+  casting_impeller:
+    ref: ravirajsinh45/real-life-industrial-dataset-of-casting-product
+    kind: dataset
+    tier: A
+    materials: [steel]
+    license: CC-BY-NC-SA-4.0
+    commercial_ok: false
+    notes: >
+      7,348 top-view images of stainless-steel submersible pump impellers from Pilot
+      Technocast, Rajkot, Gujarat -- shot on a FIXED camera under stable lighting at a
+      constant working distance. That capture geometry is the deployment scenario in
+      docs/ARCHITECTURE.md section 5, which no other source in this registry matches:
+      everything else is handheld, web-scraped or lab-bench.
+
+      Labels are classification only (def_front / ok_front), so the ~3,758 defective
+      images carry NO pixel masks. They enter the corpus as a labelling queue, not as
+      positives. The ok_front half is usable immediately as clean fixed-camera
+      hard negatives, which is what the false-positive requirement (NFR-3) needs most.
+    enabled: true
+
+  # Deliberately skipped: lakshaymiddha/crack-segmentation-dataset.
+  # Same underlying sources as CrackSeg9k but with un-unified annotations;
+  # de-dup would discard most of it and the leftovers would reintroduce the
+  # mask-thickness inconsistency CrackSeg9k exists to fix.
+
+# ---------------------------------------------------------------------------
+# Roboflow Universe. Needs a free API key in ~/.roboflow/api_key.
+#
+# `use` is policy, not a comment. Each entry records which classes of that
+# dataset are trusted AS SEGMENTATION TARGETS, based on visual review of the
+# actual masks. Several of these datasets have a good class and a bad one in the
+# same export, so importing a dataset wholesale would silently mix a reliable
+# mask convention with an unreliable one -- the exact failure that made MVTec's
+# scratch masks unusable and put 1,115 wood knot blobs in the positives.
+#
+# mask_style:
+#   fine  -> masks follow the defect boundary; usable as segmentation targets
+#   blob  -> masks outline the anomaly REGION; detection/class only, never IoU
+# ---------------------------------------------------------------------------
+roboflow:
+  rf_ceramic_tile_surface:
+    ref: spencerworkspace/ceramic-tile-surface-defects
+    material: ceramic
+    use: [scratch]
+    reject: [crack]
+    mask_style: fine
+    notes: "reviewed: scratch masks are clean, crack masks are weak. Scratch only."
+
+  rf_ceramic_cracks:
+    ref: h-rnzqa/cracks-n5ahr
+    material: ceramic
+    use: [crack]
+    mask_style: fine
+    notes: "reviewed: good ceramic cracks"
+
+  rf_ceramic_defect_detection:
+    ref: ceramic/ceramic-defect-detection
+    material: ceramic
+    use: [crack]
+    mask_style: fine
+    notes: >
+      reviewed: cracks are real but SUBTLE. Flagged risk: they may not survive
+      the 256x256 downscale. Verify on a contact sheet at model resolution
+      before trusting; a defect invisible after resize teaches the model that
+      clean-looking tile is cracked.
+
+  rf_endoscope_cracks:
+    ref: aleksandr-endoscope/endoscope-cracks-segmentation
+    material: steel
+    use: [crack]
+    mask_style: fine
+    notes: "reviewed: good. Steel pipe interior — borescope optics, not conveyor."
+
+  rf_steel_reuse_cracks:
+    ref: steel-reuse/steel-reuse-cracks-ysu8b
+    material: steel
+    use: [crack]
+    mask_style: fine
+    notes: "reviewed: very good metal cracks"
+
+  rf_metal_defects:
+    ref: shahin-workspace/metal-defects-jn5zf
+    material: metal
+    use: [crack, scratch]
+    reject: [porosity, "null"]
+    mask_style: fine
+    notes: >
+      reviewed: very good. THE key source for non-steel metal, which had zero
+      real crack masks. Porosity is an area defect and out of scope (arch section 4).
+
+  rf_pipe_crack:
+    ref: gazxard/pipe-crack-detection
+    material: plastic
+    use: [crack]
+    mask_style: fine
+    notes: "reviewed: uncertain material, possibly plastic pipe. Verify on sheet."
+
+  rf_molding_crack:
+    ref: molding-2avtd/molding-kabyb
+    material: plastic
+    use: [MOLDING_CRACK]
+    mask_style: fine
+    notes: >
+      reviewed: candidate for the plastic gap, which currently stands at ZERO
+      real crack masks. Injection-moulded parts are a genuine conveyor product.
+
+  rf_glass_scratch:
+    ref: dataset-rmy16/glass-dataset-scratch
+    material: glass
+    use: [scratch]
+    reject: [crack]
+    mask_style: fine
+    notes: "reviewed: scratch good, crack class is unreliable. Scratch only."
+
+  rf_glass_detection:
+    ref: yolo-r8fla/glass-detection-uymwf
+    material: glass
+    use: [crack, scratch]
+    mask_style: fine
+    enabled: false
+    notes: >
+      REJECTED at contact-sheet review: only 3 rows survive the polygon filter, all
+      near-black frames where the annotation cannot be verified by eye. Too few and
+      too ambiguous to be worth the risk.
+
+  rf_mobile_minute_cracks:
+    ref: instacash/mobile-minute-cracks
+    material: glass
+    use: [crack]
+    mask_style: fine
+    enabled: false
+    notes: >
+      REJECTED at contact-sheet review: the images are line-art SCHEMATICS of phones
+      (white outline on black), not photographs of a surface. Masks are drawn on
+      illustrations, so training on them teaches crack appearance from a drawing.
+
+  rf_mobile_cracks_seg:
+    ref: mobile-scratch/mobile-cracks-segmentation
+    material: glass
+    use: [scratch]
+    mask_style: fine
+    notes: "reviewed: screen scratch masks are good"
+
+  rf_cracked_phone:
+    ref: heechan/cracked_phone
+    material: glass
+    use: [crack]
+    mask_style: fine
+    notes: "reviewed: screen cracks very good"
+
+  rf_display_damage:
+    ref: demoworkspace-0gyhr/damage-detection-on-display
+    material: glass
+    use: []
+    mask_style: blob
+    notes: >
+      reviewed: both classes are visually correct BUT the masks are coarse
+      blobs, not fine boundaries. Same convention MVTec's scratch masks used
+      (33.6 px median width), which was rejected as a segmentation target and
+      quarantined. Imported detection/class only, never as a pixel target.

@@ -1,0 +1,74 @@
+# --- secrets: never commit ---
+.kaggle/
+kaggle.json
+access_token
+*.token
+.env
+*.pem
+.roboflow/
+api_key
+roboflow.json
+
+# Agent tool settings. Excluded because it is a credential file in practice, not
+# just an editor preference: the permission allow-list records literal commands,
+# and this one contained a Kaggle access token in plaintext. Anything that logs
+# the commands a session ran is a secret-bearing file.
+.claude/
+
+# --- environments ---
+.venv/
+__pycache__/
+*.pyc
+
+# ---------------------------------------------------------------------------
+# Data policy: bulk stays on disk, provenance goes in git.
+#
+# Everything under data/ is regenerable from `dataset/` given the sources in
+# dataset/sources.yaml -- index -> normalize -> split -> qa. What must be in git is
+# whatever makes that regeneration deterministic and auditable: the split definition,
+# its hash, and the manifests. Committing the images themselves would push a licence
+# problem into the repo as well as gigabytes: the corpus mixes CC0, CC-BY, CC-BY-NC
+# and research-only terms, and several sources forbid redistribution outright.
+# ---------------------------------------------------------------------------
+data/*
+!data/manifest.csv
+!data/manifest_clean.csv
+!data/manifest_split.csv
+!data/splits.json
+!data/backgrounds.csv
+!data/wood_yield.csv
+!data/index_audit.txt
+
+# Benchmark RESULTS are evidence and belong in git; benchmark WEIGHTS do not.
+# 23 checkpoints is 139 MB, and the .json next to each one already records the
+# metrics, the args and the split hash that produced it.
+!data/bench/
+data/bench/*.pt
+data/bench/*.onnx
+
+# Superseded manifests: kept on disk for comparison, not in the first commit.
+data/manifest_split_v1.csv
+data/manifest_split_v4.csv
+
+# --- archives and raw arrays ---
+*.zip
+*.tar
+*.tar.xz
+*.npy
+*.memmap
+
+# --- session and scratch artefacts ---
+*.jsonl
+nohup.out
+head.bin
+dv.json
+
+# --- misc ---
+.DS_Store
+Thumbs.db
+
+# --- deliverables and working notes: not part of the codebase ---
+*.pptx
+*.xlsx
+HANDOFF.md
+additonal_help_datatset.txt

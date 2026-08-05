@@ -1,0 +1,49 @@
+"""Load a stored run and its weights.
+
+Matched on the `tag` field inside each JSON, never by globbing filenames: a glob over
+`*V3_*` once pulled in thirty unrelated runs. The filename is a label, the tag is the key.
+"""
+import json
+import sys
+from pathlib import Path
+
+import torch
+
+ROOT = Path(__file__).resolve().parent.parent
+BENCH = ROOT / "data/bench"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import models as M  # noqa: E402
+
+
+def find(tag):
+    """-> the run dict for `tag`."""
+    for p in sorted(BENCH.glob("*.json")):
+        try:
+            run = json.loads(p.read_text())
+        except ValueError:
+            continue
+        if run.get("tag") == tag:
+            return run
+    raise SystemExit(f"no run tagged {tag!r} in {BENCH}")
+
+
+def load(tag, device=None):
+    """-> (model in eval mode, run dict, dataset kwargs).
+
+    Dataset kwargs come from the run's own arguments, not from defaults: an evaluation
+    must not silently score a checkpoint under a profile or transform it never saw.
+    """
+    run = find(tag)
+    ck = run.get("checkpoint")
+    if not ck or not Path(ck).exists():
+        raise SystemExit(f"run {tag} has no saved checkpoint (train with --save)")
+
+    device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    classes = int(run["args"].get("classes", 1))
+    model = M.build(run["model"], classes=classes).to(device)
+    model.load_state_dict(torch.load(ck, map_location=device))
+    model.eval()
+    ds_kw = dict(classes=classes,
+                 camera_profile=run["args"].get("camera_profile", "conveyor"),
+                 prep=run["args"].get("prep"))
+    return model, run, ds_kw

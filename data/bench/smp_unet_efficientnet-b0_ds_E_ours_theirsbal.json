@@ -1,0 +1,100 @@
+{
+ "run": "smp_unet_efficientnet-b0_ds_E_ours_theirsbal",
+ "model": "smp_unet_efficientnet-b0",
+ "tag": "ds_E_ours_theirsbal",
+ "args": {
+  "model": "smp_unet_efficientnet-b0",
+  "epochs": 2,
+  "batch": 48,
+  "lr": 0.0003,
+  "train_steps": 250,
+  "synth": "data/synth,data/df_bal",
+  "synth_frac": 0.45,
+  "exclude_materials": [],
+  "camera_aug": true,
+  "tag": "ds_E_ours_theirsbal",
+  "seed": 1337,
+  "eval_batches": 40
+ },
+ "history": [
+  {
+   "iou": 0.41121574863504196,
+   "dice": 0.5547129460268463,
+   "cldice": 0.6105473961506614,
+   "tf1@2": 0.6994873155296593,
+   "detect_rate": 0.9875,
+   "fp_area": 0.031129097938537596,
+   "fp_image_rate": 0.778125,
+   "n_pos": 640,
+   "n_neg": 640,
+   "epoch": 1,
+   "train_loss": 1.049365790128708,
+   "epoch_s": 98.64712047576904
+  },
+  {
+   "iou": 0.4667175750387371,
+   "dice": 0.606302317141776,
+   "cldice": 0.6709255251265897,
+   "tf1@2": 0.7722430539687297,
+   "detect_rate": 0.971875,
+   "fp_area": 0.004467558860778808,
+   "fp_image_rate": 0.5203125,
+   "n_pos": 640,
+   "n_neg": 640,
+   "epoch": 2,
+   "train_loss": 0.7520207760334015,
+   "epoch_s": 83.03816270828247
+  }
+ ],
+ "train_s": 181.687490940094,
+ "test_seen": {
+  "iou": 0.4452748188023907,
+  "dice": 0.5912323252050055,
+  "cldice": 0.6738205124616219,
+  "tf1@2": 0.7815801692117706,
+  "detect_rate": 0.9775,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1200,
+  "n_neg": 0
+ },
+ "baseline_all_background": {
+  "iou": 0.0,
+  "dice": 0.0,
+  "cldice": 0.0,
+  "tf1@2": 0.0,
+  "detect_rate": 0.0,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1200,
+  "n_neg": 0,
+  "pixel_accuracy": 0.9482302220662435
+ },
+ "test_unseen_material": {
+  "iou": 0.19669291264887875,
+  "dice": 0.31510067639579786,
+  "cldice": 0.5877408971666993,
+  "tf1@2": 0.5374018375468661,
+  "detect_rate": 0.96280276816609,
+  "fp_area": NaN,
+  "fp_image_rate": 0.0,
+  "n_pos": 1156,
+  "n_neg": 0
+ },
+ "test_negatives": {
+  "iou": NaN,
+  "dice": NaN,
+  "cldice": NaN,
+  "tf1@2": NaN,
+  "detect_rate": 0.0,
+  "fp_area": 0.004295027256011963,
+  "fp_image_rate": 0.4578125,
+  "n_pos": 0,
+  "n_neg": 1280
+ },
+ "cost": {
+  "params": 6251469,
+  "cpu_ms": 54.87513000000206,
+  "gpu_ms": 13.375814999999136
+ }
+}
