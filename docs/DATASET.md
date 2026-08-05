@@ -1,4 +1,72 @@
-# Dataset Strategy, Provenance and Expansion Plan
+# Dataset Strategy, Provenance and Governance
+
+Corpus: **51,504 real images** from 18 sources, frozen as splits v7,
+sha `c0fde17c96749567`. Synthetic data is stored separately and never enters validation
+or test. Section 0 reconciles this against the dataset plan submitted in Phase 1 §13.4;
+sections 1–7 document what is actually in the corpus and why; section 8 records what was
+planned and not delivered; section 9 is the quality gate every update must pass.
+
+## 0. Reconciliation with the Phase 1 dataset plan
+
+Phase 1 §13.4 named nine sources and a governance regime. Six of the nine are in the
+corpus. The plan changed on measurement, not on convenience, and each divergence is
+recorded here rather than left for a reader to discover by comparing tables.
+
+### 0.1 Planned sources against actual use
+
+| Phase 1 planned | Planned role | Actual role | Rows |
+|---|---|---|---:|
+| Severstal | **Primary training and validation for steel** | **Demoted to hard negatives.** Its four classes are inclusion, patch, pitting and scaling — *none of them is a crack*. It cannot supervise the crack class it was chosen for | 3,998 |
+| KolektorSDD2 | Real production imagery for training | Hard negatives. Surface defects on commutators, not cracks | 2,979 |
+| NEU-DET | Hard-negative mining | As planned. `crazing` is a crack network but ships **bounding boxes only**, so it cannot supervise a mask | 1,499 |
+| GC10-DET | Hard negatives | As planned | 2,300 |
+| DAGM 2007 | Texture robustness, FP control | **Not used.** Weak ellipse labels on synthetic textures; the same FP control came from real clean surfaces (`sdnet`, `ozgenel`, `dtd`) at higher fidelity | 0 |
+| MVTec AD | Cross-material generalisation | Split by usefulness: 137 rows kept as crack masks (tile, capsule); its 100 **scratch** masks quarantined into `test_scratch_blob` on a width audit — 33.6 px median against 7.3 px for a real scratch | 137 |
+| Magnetic Tile | Thin-defect recall on a ceramic-like surface | As planned, but thinner than expected — 51 usable crack masks of 1,295 images | 1,295 |
+| DefectForge (team synthetic) | Training augmentation only | As planned, and it became the **sole source of synthetic scratches** (ADR-013) | train-only |
+| Pilot capture set | Frozen real test split | **Not delivered.** No line access. 2,779 real fixed-camera casting images were downloaded and staged, but labelling was cancelled, so they are hard negatives rather than the intended test split | 2,779 |
+
+**Six sources were added that Phase 1 did not anticipate**, because the planned set
+contained almost no crack masks once audited:
+
+| Added | Why | Rows | Crack masks |
+|---|---|---:|---:|
+| CrackSeg9k | The only large permissive corpus of real thin-crack masks. Carries the project's crack morphology | 8,903 | 7,544 |
+| SteelDefectX | **Closed the steel gap.** The only permissive source of real steel *crack* masks, and the only usable source of real steel **scratch** masks | 4,755 | 924 |
+| Wood (Zenodo) | Unseen-material transfer test — never trained on as a positive | 3,852 | 1,156 |
+| `rf_pipe_crack` (Roboflow) | Closed plastic from **0 → 936** masks, the single largest coverage gain in the project | 936 | 935 |
+| `rf_steel_reuse_cracks`, `rf_endoscope_cracks`, `rf_cracked_phone` | Additional real crack masks after the §4b gates | 397 | 397 |
+| SDNET, Ozgenel, DTD | Clean surfaces and natural textures for the false-positive budget | 17,294 | 0 |
+
+The lesson worth stating: **the Phase 1 plan selected datasets by reputation, and the
+audit selected them by whether they contain the annotation this task needs.** Severstal
+is the clearest case — the best-known steel defect dataset in the field, planned as the
+primary training source, and it contains zero cracks.
+
+### 0.2 Split ratio: 70/15/15 planned, 80/15/5 actual
+
+Phase 1 §13.4 specified 70/15/15. The frozen split is **80/15/5**, stratified at group
+level by material × foreground quartile.
+
+The reason is the thin materials. At a 15 % test share the scarce factory materials —
+epoxy at 49 masks, ceramic at 168, glass at 12 — leave too little in training to learn
+from at all, and their test slices are still too small to carry a per-material number.
+Moving to 5 % keeps `test_factory` at 156 images, which is enough for the headline while
+leaving the training pool intact.
+
+The cost is stated rather than hidden: **`test_factory_scratch` falls to 31 images.**
+Its clDice carries a wide interval and must always be quoted with the count attached.
+
+### 0.3 Governance rules from Phase 1 §13.4
+
+| Rule | Status |
+|---|---|
+| Real images only in evaluation | **Enforced in code.** `bench/data.py` raises if a synthetic directory is passed with `train=False`; `dataset/qa.py --strict` asserts it independently |
+| Frozen test split | **Met.** v7 frozen with a recorded sha; regenerated from source by `dataset/split.py`, not hand-edited |
+| Leakage audit by perceptual hash | **Met.** phash de-duplication plus group-level splitting by parent photograph; QA fails on any near-duplicate crossing a boundary |
+| Human verification before pseudo-labels enter training | **Met by construction** — no pseudo-labelled sample exists. The labelling workflow was cancelled (§8) |
+| Dedicated clean-surface set for false-positive area | **Met.** `test_negatives`, 4,626 real defect-free images |
+| Per-material reporting, never one aggregate | **Met.** `bench/per_material.py`; ADR-016 makes it a reporting requirement |
 
 ## 1. Why this dataset needs a deliberate strategy
 
@@ -32,7 +100,7 @@ Every canonical real-image row includes an image, a binary PNG mask, source ID, 
 
 `c0fde17c96749567…` (full value in `data/splits.json`)
 
-**v5 onward is regenerated entirely from source.** Under v4 it was not: the `test_scratch` and `test_steel` splits, and the plaster/epoxy material corrections, existed only as edits applied to the split manifest by no committed script, so `manifest_clean.csv` and `manifest_split.csv` disagreed about what a row was made of and neither could be rebuilt. Those rules now live in `dataset/normalize.py` and `dataset/split.py`, and the four-command sequence in §10 reproduces the frozen suite from the image files.
+**v5 onward is regenerated entirely from source.** Under v4 it was not: the `test_scratch` and `test_steel` splits, and the plaster/epoxy material corrections, existed only as edits applied to the split manifest by no committed script, so `manifest_clean.csv` and `manifest_split.csv` disagreed about what a row was made of and neither could be rebuilt. Those rules now live in `dataset/normalize.py` and `dataset/split.py`, and the four-command sequence in §9 reproduces the frozen suite from the image files.
 
 The role of an image is more important than its filename:
 
@@ -293,52 +361,64 @@ The scratch quota is load-bearing: at its natural ~6 % frequency the class was n
 
 Glass is the exception and must be stated as one: 12 real masks against 3,739 synthetic glass patches. Nothing about the glass class is evidence, at any mixing ratio.
 
-## 8. Plan for the next generated dataset: factory-balanced `synth_factory_v1`
+## 8. Planned and not delivered
 
-The objective is not simply to generate more images. It is to make a separately versioned training corpus that specifically closes factory-QC weaknesses without corrupting the proven baseline.
+Recorded here rather than deleted, because a plan that quietly disappears reads as a plan
+that was met.
 
-### Phase A — preserve the evidence base
+### 8.1 SAM2-assisted labelling — cancelled
 
-1. Keep v4 validation and test images immutable.
-2. Rebuild `data/backgrounds.csv` from only eligible `train`/`wood_bg` images after any split change.
-3. Store every synthetic run in a new directory with its own provenance file; do not overwrite `data/synth`.
-4. Generate and inspect contact sheets by material, class and device profile before training.
+The workflow was designed in full: SAM2 proposals intersected with an independent
+thin-structure detector, contact-sheet review, a named reviewer per mask, and a
+pseudo-label manifest recording reviewer, timestamp, method version and edit status.
+Only accepted or edited masks would reach training, and none would reach validation or
+test.
 
-### Phase B — factory-balanced procedural synthesis
+It was cancelled on time, not on principle. The remaining schedule was better spent on
+training runs against the data already held. `data/label_queue` holds the staged queue
+and is unused.
 
-Create `data/synth_factory_v1` with the following design:
+The consequence is a *benefit* to evidence quality and a *cost* to coverage: **FR-11 is
+met by construction** — there are no pseudo-labels to verify, so no unverified mask can
+reach training — but the 2,779 real fixed-camera casting images from Rajkot stay
+unlabelled, and they were the closest thing in the corpus to the actual deployment
+scenario.
 
-| Component | Plan | Why |
+### 8.2 Factory-balanced `synth_factory_v1` — not built
+
+A material-balanced synthetic corpus with geometry fitted to measured real-mask width and
+branching distributions. Superseded twice over: the device-profile component was
+withdrawn with multi-device capture (ADR-011), and the per-source kind selection of
+ADR-013 achieved the useful half — cracks from our compositor, scratches from
+DefectForge — without a new corpus.
+
+The measurement that would have justified it also argued against it. **Real data
+outweighs synthetic volume by a wide margin**: adding 180 real steel crack images moved
+steel clDice from ~0.09–0.14 to 0.61–0.63, while raising the synthetic share of a batch
+from 25 % to 45 % *reduced* unseen-material transfer (ADR-014). More synthetic images
+were not the constraint.
+
+### 8.3 Pilot line capture — not delivered
+
+Phase 1 §13.4 planned a frozen real test split captured from the target line's fixed
+camera rig. No line access was obtained. Every number in this project is therefore
+measured on public data plus one Roboflow product line, and **no result rests on imagery
+from the deployment station it is designed for.** That is the single largest evidence gap
+in the project.
+
+### 8.4 Materials still uncovered
+
+| Material | State | What would close it |
 |---|---|---|
-| Material sampling | Equal target counts for steel, ceramic, epoxy/plastic and mixed metal; bounded civil auxiliary sampling | Native data frequency would otherwise drown scarce factory materials. |
-| Crack geometry | Fit width, length, branching and foreground fraction to real SteelDefectX, Magnetic Tile, KolektorSDD1 and accepted CrackSeg9k masks | Measured distributions are more defensible than arbitrary lines. |
-| Scratch class | Generate a separate thin scratch mask, with bright/dark variants and material-aware orientation/texture | Provides valid supervision for the planned three-class model; MVTec blobs are not reused. |
-| Hard negatives | Increase weld seams, brushed-metal grain, tool marks, pits, oil/water spots and grout | These are the false-positive modes that matter in factory inspection. |
-| Device profiles | Explicit borescope, webcam and phone profiles with mask-safe geometry | Targets the devices specified in the requirements, not generic augmentation. |
-| Synthetic ratio | Start at ≤45% of training samples per epoch; sweep only using frozen real tests | A 60% synthetic share previously collapsed unseen-material performance. |
+| Non-steel metal | **0 real crack masks** | 50–100 confirmed defects on aluminium, copper or painted panel, plus an equal number of clean images |
+| Glass | 12 masks | Not a measurement. Needs a product line and controlled backlighting |
+| Plastic beyond PVC pipe | 936 masks, one product | Moulded casings and switch plates from Daman/Vapi/Noida |
+| Ceramic | 168 masks | Morbi production captures — highest Indian relevance of any gap here |
 
-No generated corpus becomes the recommended default unless a ≥3-seed comparison on v4 improves factory metrics without breaking the clean-surface false-positive-area limit of 0.5%.
+For any future collection: record part, batch and device IDs so group-safe splitting
+still works, and **reserve the test portion before annotation begins**, never afterwards.
 
-## 9. Plan for more real images and SAM2-assisted labelling
-
-The steel experiment provides the central lesson: adding 180 real steel crack images raised steel clDice from approximately 0.09–0.14 to 0.61–0.63. Real material breadth is therefore more valuable than another 100,000 synthetic patches.
-
-### Targeted collection
-
-Collect at least 50–100 confirmed defects and an equal or larger number of clean images for plastic, aluminium/copper/painted metal and pipe interiors. For each material, capture phone, webcam and borescope views under several lighting distances and include realistic distractors. Record part/batch/device IDs to preserve group-safe splitting. Reserve a final test portion **before** annotation/training and never reuse it as synthetic background.
-
-### SAM2-assisted, human-verified workflow
-
-1. Collect unlabelled real factory images; store source, device, material and part/batch ID.
-2. Run SAM2 plus an independent thin-structure/edge proposal method.
-3. Keep only thin, elongated candidates where SAM2 and edge evidence agree; never accept a mask from a single high-confidence model alone.
-4. Review contact sheets showing source image, overlay and mask. A human marks each candidate accept, edit or reject and assigns crack/scratch.
-5. Save reviewer, timestamp, method version, source device and edit status in a pseudo-label manifest.
-6. Use only accepted/edited pseudo-labels in training. No pseudo-label enters validation or test.
-
-This procedure uses automation to reduce annotation cost but retains human accountability where mask semantics matter.
-
-## 10. Quality gates for every dataset update
+## 9. Quality gates for every dataset update
 
 ```powershell
 python dataset/index.py

@@ -22,7 +22,7 @@ class Profile:
 
     Thresholds are per class (a scratch is wider and higher-contrast than a hairline
     crack) and were chosen on val by bench/class_thresh.py, never on a test split. The
-    area and skeleton floors come from the false-positive budget, NFR-3.
+    area and skeleton floors come from the false-positive budget, NFR-03.
     """
 
     profile_id: str = "conveyor-v2"

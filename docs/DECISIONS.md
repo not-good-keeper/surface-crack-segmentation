@@ -1,5 +1,38 @@
 # Engineering Decision Log
 
+One record per decision that would otherwise have to be re-derived from the code. Each
+states what was decided, the measurement behind it, and — where one exists — the reading
+that turned out to be wrong. Reversals and corrections are kept in place rather than
+edited away: a log that only contains decisions that held is not a log, it is a summary.
+
+Requirement IDs are Phase 1's (`FR-nn`, `NFR-nn`); test IDs are Phase 2's (`T-nn`).
+
+| ADR | Decision | Status |
+|---|---|---|
+| 001 | Segmentation first, detector deferred | Holds |
+| 002 | Factory-first claim, civil data as auxiliary evidence | Holds |
+| 003 | MobileNetV3-Small + slim U-Net | Holds; re-measured for 3 classes |
+| 004 | Metrics must include false-positive area | Holds |
+| 005 | Frozen, leakage-tested evaluation | Holds |
+| 006 | Masonry for unseen validation, wood for final transfer | Holds |
+| 007 | Reject invalid masks on a width audit | Holds |
+| 008 | Mask-safe online augmentation | Superseded in part by 011 |
+| 009 | Synthetic and pseudo labels are train-only | Holds |
+| 010 | Do not overclaim readiness | Holds; position updated |
+| 011 | Model the deployment station, not a generic camera | Holds; withdraws multi-device capture |
+| 012 | Rebalance scratch at the sampler, never in the loss | Holds |
+| 013 | Synthetic kinds selected per source, not globally | Holds |
+| 014 | Real:synthetic ratio is a transfer decision | Holds; contains a correction |
+| 015 | Roboflow imports pass three measured gates | Holds |
+| 016 | The headline split must be reported per material | Holds |
+| 017 | The 4-epoch cap is an artefact of an older recipe | Holds |
+| 018 | The input transform is a sensitivity knob; NFR-03 picks the setting | Holds |
+| 019 | A long run needs a schedule, or selection becomes a lottery | Holds |
+| 020 | The verdict is withdrawn; the system reports evidence | Holds |
+| 021 | Test share cut from 15 % to 5 % | Holds |
+
+---
+
 ## ADR-001 — Segmentation first
 
 Use segmentation as the primary output and defer a detector gate. The operator needs boundaries and geometry; a detector alone cannot provide them. Add detection only if measured line throughput requires it.
@@ -12,23 +45,31 @@ Factory surface inspection is the target; civil materials are auxiliary pre-trai
 
 The binary deployment baseline is MobileNetV3-Small plus slim U-Net: 1.43 M parameters, 5.8 MB float32 ONNX and 26.1 ms desktop single-core ONNX. Smaller from-scratch models had 10–15× worse FP area, unacceptable for QC.
 
-**Three-class performance is now measured** on the same topology (splits v7, `c0fde17c96749567`): `test_factory` clDice 0.665, IoU 0.456, detection 0.962; clean-surface FP area 0.447 %. The encoder/decoder was not re-selected for the three-class head — only the final 1×1 convolution changed — so ADR-003's original comparison stands.
+**Three-class performance is now measured** on the same topology (splits v7, `c0fde17c96749567`). The encoder/decoder was not re-selected for the three-class head — only the final 1×1 convolution changed — so ADR-003's original comparison stands.
+
+A same-config bake-off across nine architectures (`ts`) found **no reliable gain above 1.43 M parameters**: seen clDice sits at 0.63–0.71 from 1.43 M to 6.25 M, and the one apparent win did not replicate across seeds (wood 0.204 / 0.087 / 0.334). Capacity is not the binding constraint; per-material data is.
 
 ## ADR-004 — Metrics include false-positive area
 
 Use clDice, tolerant F1, IoU and FP area. Pixel accuracy can be gamed by background; IoU alone is harsh for 1–3 px structures; FP area represents over-rejection risk.
 
+Report **two** false-positive numbers, not one. `fp_area` is the share of clean pixels wrongly lit; `fp_image_rate` is the share of clean images with at least one spurious region. The second is what an operator experiences — at 7.5 % it means roughly 75 false stops per 1,000 parts — and it is far less flattering than the 0.33 % area figure.
+
 ## ADR-005 — Frozen, leakage-tested evaluation
 
-Use parent-group/perceptual-hash splits and QA gating. A prior 1,492-row unseen-validation leak passed QA, so v4 explicitly asserts that the unseen-validation material is absent from train, val and test_seen.
+Use parent-group and perceptual-hash splits with QA gating. A prior 1,492-row unseen-validation leak passed QA, so the split assertions now explicitly require that the unseen-validation material is absent from `train`, `val` and `test_seen`.
+
+QA also fails if the manifest contains any split it does not know about. The original leak survived because `test_scratch` and `test_steel` were absent from `EVAL_SPLITS`, and that list is what the leakage check intersects against — **an omitted split is not merely unreported, it is unchecked.**
 
 ## ADR-006 — Masonry validation, wood final transfer test
 
-Masonry is held out for unseen validation and wood for final transfer. Holding plaster out removed 1,492 positives and reduced unseen-wood clDice to 0.444 ± 0.055; v4 costs 192 positives and measured 0.562 ± 0.055.
+Masonry is held out for unseen validation and wood for final transfer. Holding plaster out removed 1,492 positives and reduced unseen-wood clDice to 0.444 ± 0.055; the current freeze costs 192 positives.
 
 ## ADR-007 — Reject invalid masks
 
 Reject `cracktree` zero-width masks, wood knot outlines and wide MVTec anomaly blobs as segmentation targets. Width audit and contact sheets catch semantic errors that structural checks miss.
+
+`cracktree` is the clearest case: mean, median, p10 **and** p90 width all report exactly 2.00 px across 175 images. Zero variance is impossible for a measured crack width, so those masks are a constant-width dilated centreline, not an annotation of the crack. Detection is generic — near-zero width variance — not a hard-coded source name.
 
 ## ADR-008 — Mask-safe online camera augmentation
 
@@ -36,13 +77,23 @@ Use online augmentation: geometric changes apply to image and mask, photometric 
 
 **Superseded in part by ADR-011.** `camera_aug.py` now carries two profiles. `conveyor` is the default and deliberately *excludes* barrel distortion and rolling-shutter shear; `handheld` retains them so pre-v5 benchmarks stay reproducible. Neither profile has been validated against real device captures, which is why the handheld modes are not claimed as supported.
 
+## ADR-009 — Synthetic and pseudo labels are train-only
+
+Synthetic data never enters evaluation. Enforced twice, deliberately: `bench/data.py` raises if a synthetic directory is passed with `train=False`, and `dataset/qa.py --strict` asserts it independently from the manifest. A single guard in the loader would be bypassed by any future evaluation script that built its own dataset.
+
+## ADR-010 — Do not overclaim readiness
+
+Desktop latency is only a proxy; confidence is uncalibrated. These limits belong in the demo and the paper, not in a footnote.
+
+Current honest position: **plastic** has 936 real masks but all from one PVC-pipe source, so the material is not covered, one product is. **Non-steel metal** remains at zero real crack masks. **Glass** has 12, which is not a measurement. **Crack/scratch typing is only partially working** — roughly 0.43–0.49 crack class recall on the headline split — so FR-05 must be reported as partially met rather than delivered.
+
 ## ADR-011 — Model the deployment station, not the generic camera
 
 The fixed-camera reframe narrows what augmentation should simulate, and narrowing is the point. Barrel distortion is **removed** from the default profile: a machine-vision lens on an inspection station is selected and calibrated to be rectilinear, so simulating fisheye would train the model to undo a distortion the deployment optics do not have.
 
 The budget saved is spent on two artefacts that actually dominate a line. **Belt-axis motion blur**: a part on a conveyor moves along one fixed axis under a fixed shutter, so smear direction is a property of the installation, not a random variable — randomising it would teach the model that defect orientation and blur orientation are independent, which on a real line they are not. **Specular highlights**: a blown-out reflection of the LED bar off polished steel or glazed ceramic is bright, thin and directional, which is also the description of a scratch. It is the single most important negative artefact for our priority material, and it is photometric — it adds light, not a defect, so the mask must not follow it.
 
-Consequence for requirements: NFR-04 (one model across borescope, webcam and phone) is **withdrawn**. See `REQUIREMENTS.md`.
+Consequence for requirements: multi-device capture is **withdrawn**. The corpus contains almost no real borescope, webcam or phone captures, so the requirement could only ever have been asserted against synthetic distortion — which tests the augmentation rather than the model.
 
 ## ADR-012 — Rebalance the scratch class at the sampler, never in the loss
 
@@ -56,7 +107,7 @@ Our compositor produces cracks and crack-like distractors; the DefectForge engin
 
 `--synth-kinds` could not express that: it filtered the concatenated frame by kind, so requesting `crack,scratch,negative` across both directories silently admitted 27,295 DefectForge cracks — 30 % of every synthetic crack the model saw, in direct contradiction of the recipe's own documented intent. Selection is now per source (`--synth data/synth:crack|negative,data/df_patches2:scratch`).
 
-The lesson generalises past this bug: a configuration flag whose granularity does not match the decision it encodes will silently encode a different decision.
+The lesson generalises past this bug: **a configuration flag whose granularity does not match the decision it encodes will silently encode a different decision.**
 
 ## ADR-014 — Real:synthetic mixing ratio is a transfer decision, not a headline decision
 
@@ -74,71 +125,63 @@ Recorded because the tempting summary — "more real data raised the headline" �
 
 The real finding is ADR-017's, not a difference between arms: **every run is still improving when it runs out of epochs.**
 
-## ADR-017 — The 4-epoch cap is an artefact of an older recipe; the v7 runs are under-trained
+## ADR-015 — Roboflow imports pass three measured gates
 
-The short schedule was inherited from the v5/v6 rounds, where the factory headline peaked at epoch 1–2 and then decayed by ~0.06 clDice while `val` kept climbing. Capping the run was the correct response *to that behaviour*.
-
-Under splits v7 the behaviour is gone. All three completed runs — both recipes — reached their best headline at the **final** epoch, with no decay in between beyond one seed's mid-run dip. Best-epoch restoration was therefore never selecting anything but the last epoch, which means the cap was not protecting against overfitting; it was just stopping early.
-
-The most likely reason is that v7 roughly doubled real factory-material coverage (plastic 0 → 936, steel 300 → 685) while the v8 recipe cut the synthetic share of a batch from 45 % to 25 %. Both changes push the effective training distribution toward real images, and the early peak was a symptom of fitting the rendered domain quickly and then drifting off real surfaces.
-
-This was ruled in from the stored per-epoch histories at no compute cost. It is recorded because the alternative — leaving the cap in place because it was once measured — is how a setting outlives the evidence for it.
-
-Roboflow imports pass three gates: per-class trust, a **15 % foreground** ceiling, and a **20 px** area-to-skeleton ceiling. Contact-sheet review of the first import found annotators who had outlined the entire phone rather than the crack across it, and a source whose "photographs" were line-art schematics. Roughly 15 % of candidate rows and two entire sources failed.
+Imports pass per-class trust, a **15 % foreground** ceiling, and a **20 px** area-to-skeleton ceiling. Contact-sheet review of the first import found annotators who had outlined the entire phone rather than the crack across it, and a source whose "photographs" were line-art schematics. Roughly 15 % of candidate rows and two entire sources failed.
 
 A dataset being good as a whole does not make every class in it usable: `pipe-crack-detection` pairs a real `PVC pipe crack` class with `Paper crack` and `Dummy crack`, and importing all three would teach the model that paper is a factory defect.
-
-## ADR-018 — The input transform is a sensitivity knob, and NFR-03 picks the setting
-
-`bench/prep_sweep.py` swept 22 configurations — 13 single transforms and 9 deliberately
-ordered pairs — on `val`, then applied the winners to the frozen splits. Every denoiser
-in the family moves the same four numbers together: detection, crack class recall,
-unseen-material response and false-positive area all rise as one. The choice is not
-"which transform is best" but which point on that curve stays inside the requirement.
-
-`median3` scored the best headline (clDice +0.016, crack recall 0.429 → 0.460) and was
-**rejected**: it pushes `fp_area` on `test_negatives` to 0.0061, through NFR-03's 0.005
-ceiling that v9 had only just met. `bilateral` (d=5, σ=50/50) takes clDice +0.007,
-detection 0.949 → 0.962, and unseen-material clDice +0.088 with detection 0.436 → 0.584,
-at `fp_area` 0.0040 — inside the ceiling. That is the shipped setting.
-
-Two findings worth keeping. **CLAHE, the reflex choice for surface inspection, is the
-second-worst option measured** (−0.057 at clip 2, −0.108 at clip 4): it amplifies local
-contrast on clean surface texture into crack-like evidence the model then believes.
-And **no complementary pair exists** — every pair landed at or below its weaker
-component, `clahe2+blackhat` at −0.21 against −0.057 and −0.051 alone. These ops all
-manipulate local contrast, so stacking them compounds one distortion rather than
-addressing independent nuisances.
-
-Selection is on `val` and never on a test split, and this round shows why: two of the
-four val winners lost on test, `flatten` by 0.084. The transform is stamped into the
-ONNX graph's `metadata_props` so `app/inference.py` applies it without being told, and a
-checkpoint trained with a different one cannot silently mismatch the deployment path.
-
-## ADR-019 — A long run needs a schedule, or best-epoch selection becomes a lottery
-
-At a constant 3e-4 the headline swung ~0.06 between adjacent epochs while `val` stayed
-flat — the optimiser orbiting a minimum rather than converging. That is tolerable over
-20 epochs and corrosive over 80: picking the best of 80 draws from a noisy series is
-selecting on the test split, and the reported headline would be biased upward by
-whichever epoch got lucky.
-
-`--cosine` decays to 2 % of the initial rate across the run, so the tail is stable and
-the final epoch is a defensible choice rather than a lottery win. It is opt-in; every
-stored run predates it and stays reproducible.
 
 ## ADR-016 — The headline split must be reported per material
 
 `test_factory` is not one population. Image-weighted clDice is 0.651 while material-weighted is 0.525, and the gap is plastic and epoxy carrying steel — the priority material, and the worst performer at 0.529.
 
-Crack **class** recall tracks real crack training data per material almost monotonically: steel 0.702 (1,047 masks), plastic 0.657 (749), ceramic 0.315 (120), epoxy 0.279 (**0**). Since headline clDice and IoU are class-agnostic, none of this is visible in the headline. `bench/per_material.py` is therefore a reporting requirement (TC-13), not a diagnostic convenience.
+Crack **class** recall tracks real crack training data per material almost monotonically: steel 0.702 (1,047 masks), plastic 0.657 (749), ceramic 0.315 (120), epoxy 0.279 (**0**). Since headline clDice and IoU are class-agnostic, none of this is visible in the headline. `bench/per_material.py` is therefore a reporting requirement (T-18), not a diagnostic convenience.
 
-## ADR-009 — Synthetic/pseudo labels are train-only
+## ADR-017 — The 4-epoch cap is an artefact of an older recipe; the v7 runs are under-trained
 
-DefectForge and approved SAM2 pseudo-labels never enter evaluation. This preserves real-image evidence.
+The short schedule was inherited from the v5/v6 rounds, where the factory headline peaked at epoch 1–2 and then decayed by ~0.06 clDice while `val` kept climbing. Capping the run was the correct response *to that behaviour*.
 
-## ADR-010 — Do not overclaim readiness
+Under splits v7 the behaviour is gone. All three completed runs — both recipes — reached their best headline at the **final** epoch. Best-epoch restoration was therefore never selecting anything but the last epoch, which means the cap was not protecting against overfitting; it was just stopping early.
 
-Desktop latency is only a proxy; confidence is uncalibrated. These limits belong in the demo and paper.
+The most likely reason is that v7 roughly doubled real factory-material coverage (plastic 0 → 936, steel 300 → 685) while the v8 recipe cut the synthetic share of a batch from 45 % to 25 %. Both changes push the effective training distribution toward real images, and the early peak was a symptom of fitting the rendered domain quickly and then drifting off real surfaces.
 
-Current honest position, superseding the original coverage note: **plastic** has 936 real masks but all from one PVC-pipe source, so the material is not covered, one product is. **Non-steel metal** remains at zero real crack masks. **Glass** has 12, which is not a measurement. **Crack/scratch typing is only partially working** — 0.46 crack class recall on the headline split — so FR-03 must be reported as partially met rather than delivered.
+This was ruled in from the stored per-epoch histories at no compute cost. It is recorded because the alternative — leaving the cap in place because it was once measured — is how a setting outlives the evidence for it.
+
+## ADR-018 — The input transform is a sensitivity knob, and NFR-03 picks the setting
+
+`bench/prep_sweep.py` swept 22 configurations — 13 single transforms and 9 deliberately ordered pairs — on `val`, then applied the winners to the frozen splits. Every denoiser in the family moves the same four numbers together: detection, crack class recall, unseen-material response and false-positive area all rise as one. The choice is not "which transform is best" but which point on that curve stays inside the requirement.
+
+`median3` scored the best headline (clDice +0.016, crack recall 0.429 → 0.460) and was **rejected**: it pushes `fp_area` on `test_negatives` to 0.0061, through NFR-03's 0.005 ceiling that v9 had only just met. `bilateral` (d=5, σ=50/50) takes clDice +0.007, detection 0.949 → 0.962, and unseen-material clDice +0.088 with detection 0.436 → 0.584, at `fp_area` 0.0040 — inside the ceiling. That is the shipped setting.
+
+Two findings worth keeping. **CLAHE, the reflex choice for surface inspection, is among the worst options measured** (−0.057 at clip 2, −0.108 at clip 4): it amplifies local contrast on clean surface texture into crack-like evidence the model then believes. And **no complementary pair exists** — every pair landed at or below its weaker component, `clahe2+blackhat` at −0.21 against −0.057 and −0.051 alone. These ops all manipulate local contrast, so stacking them compounds one distortion rather than addressing independent nuisances.
+
+Selection is on `val` and never on a test split, and this round shows why: two of the four val winners lost on test, `flatten` by 0.084. The transform is stamped into the ONNX graph's `metadata_props` so `app/inference.py` applies it without being told, and a checkpoint trained with a different one cannot silently mismatch the deployment path.
+
+## ADR-019 — A long run needs a schedule, or best-epoch selection becomes a lottery
+
+At a constant 3e-4 the headline swung ~0.06 between adjacent epochs while `val` stayed flat — the optimiser orbiting a minimum rather than converging. That is tolerable over 20 epochs and corrosive over 80: picking the best of 80 draws from a noisy series is selecting on the test split, and the reported headline would be biased upward by whichever epoch got lucky.
+
+`--cosine` decays to 2 % of the initial rate across the run, so the tail is stable and the final epoch is a defensible choice rather than a lottery win. It is opt-in; every stored run predates it and stays reproducible.
+
+## ADR-020 — The verdict is withdrawn; the system reports evidence
+
+Phase 1 specified accept / reject / review-required (FR-15) driven by a derived **fracture** state, with an authorised override (FR-16). Both are withdrawn.
+
+The fracture state existed only to feed the verdict: it was a threshold on measured crack length, width or network connectivity, not a visual class the model learns. Once the verdict went, nothing consumed it. The verdict itself went because the thresholds that define acceptable are **per customer and per product**, and none were ever available to this team. A verdict computed from thresholds we invented would look authoritative and mean nothing.
+
+The consequences are followed through rather than left implicit:
+
+- no verdict → nothing to override → **no user accounts** → the system **cannot attribute an action to a person**. If a customer needs attribution, accounts and the verdict return together.
+- the mask and geometry become the product. The interface states the class label is *provisional*, because typing is right on roughly half of crack pixels.
+
+This is a reduction in scope and it is also the honest position: the system takes on the **search** load, which is what causes inspector fatigue, and leaves **judgement** with a person.
+
+## ADR-021 — Test share cut from 15 % to 5 %
+
+Phase 1 §13.4 specified 70/15/15. The frozen split is 80/15/5, stratified at group level by material × foreground quartile.
+
+At a 15 % test share the scarce factory materials — epoxy 49 masks, ceramic 168, glass 12 — leave too little in training to learn from, while their test slices are still too small to carry a per-material number. The 5 % share keeps `test_factory` at 156 images, enough for the headline, and leaves the training pool intact.
+
+Stratification matters more than the ratio: a pooled shuffle would let one material land mostly in test and another mostly in train by chance, and at 12 masks that decides whether a per-material number exists at all.
+
+The cost is explicit: **`test_factory_scratch` is 31 images.** Its clDice carries a wide interval and is quoted with the count attached, always.

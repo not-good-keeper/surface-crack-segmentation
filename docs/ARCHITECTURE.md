@@ -1,5 +1,15 @@
 # Surface-Defect Inspection — Architecture
 
+Expands Phase 1 §12 with what was built and measured. Requirement IDs are Phase 1's
+(`FR-nn`, `NFR-nn`), test IDs are Phase 2's (`T-nn`); `REQUIREMENTS.md` holds their
+status and `DECISIONS.md` the reasoning behind each choice. Where this document and
+Phase 1 disagree, this one is what the code does, and the difference is recorded in
+`REQUIREMENTS.md` §4.
+
+Section order: §1–5 the problem and the input path, §6–7 the model and post-processing,
+§8 deployment and interfaces, §9 human judgement, §10 status, §11 modularity and
+scalability.
+
 ## 1. Overview
 
 This system performs automated visual inspection of finished products on a factory conveyor line, using a fixed industrial camera mounted above the belt. It segments the surface into crack and scratch regions at pixel level, measures the geometry of each region, and produces a structured record per item.
@@ -301,6 +311,73 @@ The float32 reference model must be measured on an idle desktop CPU and the actu
 | Station-specific commissioning and edge/ARM latency measurement | Planned. **No ARM measurement exists**, and the corresponding phone latency target has been withdrawn from `REQUIREMENTS.md` rather than left as an unevidenced claim |
 | Calibrated, user-facing confidence and automatic validation | Deferred pending a separate validation study |
 
-**Known open defect.** Crack/scratch class recall on `test_factory` is 0.460 under the current recipe, against 0.64–0.76 previously: the model detects defects reliably but assigns the wrong *type* to more than half of crack pixels, biased toward scratch. Because the headline clDice and IoU are class-agnostic, this does not appear in them — it is visible only in the confusion metrics this head exists to produce. FR-03 ("label each region as `crack` or `scratch`") is therefore **partially met**, and the geometry results should not be read as validating the type label.
+**Known open defect.** Crack/scratch class recall on `test_factory` sits at 0.43–0.49: the model detects defects reliably but assigns the wrong *type* to more than half of crack pixels, biased toward scratch. Because the headline clDice and IoU are class-agnostic, this does not appear in them — it is visible only in the confusion metrics this head exists to produce. FR-05 is therefore **partially met**, and the geometry results should not be read as validating the type label.
 
 This distinction keeps the architecture ambitious but honest: the implementation plan is explicit, and planned capabilities are not presented as completed functionality.
+
+## 11. Modularity and scalability
+
+### 11.1 Layering
+
+Four layers, each depending only on the one below. The dependency direction is the design:
+nothing in the pipeline imports the interface, so the interface can be replaced — as it is
+being replaced — without touching a measured path.
+
+```text
+interface        Phase 2 §4 screens                     (separate deliverable)
+application      batch runner, services, record writer  app/batch.py
+inference core   preprocess -> ONNX -> class map -> geometry -> record
+                                                        app/inference.py, app/postprocess.py
+evidence base    dataset construction, training, evaluation, export
+                                                        dataset/, bench/, defectforge/
+```
+
+`bench/` may import from `app/` — `class_thresh.py` and `final_eval.py` deliberately
+evaluate through `app.postprocess.class_map` — but `app/` never imports from `bench/`
+except for the one input transform read out of the model metadata. **A sweep that chose
+thresholds under a private copy of the decision logic would be tuning a model that never
+runs.**
+
+### 11.2 Single sources of truth
+
+Each of these was a duplicate at some point, and each duplicate drifted before it was
+removed. They are listed because the failure mode is identical every time: two copies of
+one rule, both plausible, no test able to see the difference.
+
+| Rule | Single implementation | What drifted before |
+|---|---|---|
+| §7.1 class decision | `app/postprocess.py::class_map` | Evaluation used argmax while the app used thresholds, so reported accuracy described a model nobody ran |
+| Post-processing thresholds | `app/postprocess.py::Profile` | The batch CLI hard-coded 0.50/0.50 and silently overrode the values chosen on `val`. The override flags are now removed |
+| Input pipeline | `app/inference.py::preprocess`, mirroring `bench/data.py` | Nothing yet — and T-02, the case that would catch it, is the most valuable missing test |
+| Input transform spec | ONNX `metadata_props["prep"]` | Nothing yet; stamped into the artefact so a sidecar cannot be separated from the model |
+| Run → claim mapping | `docs/RESULTS.md` | Numbers quoted from runs whose command had been thrown away |
+
+### 11.3 What has to change when something changes
+
+| Change | What has to change |
+|---|---|
+| New weights after retraining | Swap the `.onnx` and record the hash. No code change unless input/output shape changes |
+| Re-tune thresholds | `Profile` in `app/postprocess.py`. Nothing else — the interface reads it at start-up (T-06) |
+| Different input transform | `--prep` at export. The app reads it from the graph (T-29) |
+| Swap ONNX Runtime for another CPU runtime | The session wrapper only. The model is a portable graph, not a runtime-specific format |
+| Add a third defect class | Retrain with a wider head, one row in `defect_class`. The post-processing loop is already per-class, and the metrics are already per-class |
+| Add a new material | A material profile and its own real test slice. No pipeline restructuring — nothing in the model or geometry depends on the material |
+| Add a verdict later | One module between geometry and the record, plus a column on `inspection`. Nothing downstream assumes a verdict exists (ADR-020) |
+| Add a new data source | An adapter in `dataset/adapters.py` plus a row in `sources.yaml`; re-run the four-command gate in `DATASET.md` §9 |
+
+### 11.4 Scale
+
+| Dimension | Position |
+|---|---|
+| Throughput | 26 ms inference on one CPU thread leaves headroom for roughly one part per second per station once the rest of the pipeline is measured. Beyond that, more worker processes on the same machine |
+| More stations | One unit per station, sharing nothing at runtime, so stations do not contend |
+| Storage | ~1 KB per inspection including regions; roughly 30 MB/day at one part per second. Overlays kept 48 h when clean, 90 days when regions were found |
+| Dataset | The manifest is a single CSV at 51,504 rows and the loader indexes it by integer position rather than copying frames per worker — the copy is what exhausted the Windows commit limit at 4 workers. Growth is linear; the phash leakage audit is the quadratic step and is the first thing that needs attention past ~100 k images |
+| Model | Measured, not assumed: no reliable accuracy gain above 1.43 M parameters across nine architectures (ADR-003). Scaling capacity is not the lever; per-material data is |
+| Evaluation | Splits are frozen with a sha and regenerate from source, so adding data does not invalidate past results — it creates a new freeze that is compared against the old one explicitly (`RESULTS.md`) |
+
+### 11.5 Sustainability constraints worth stating
+
+- **Non-commercial data.** KolektorSDD2 and MVTec AD are CC BY-NC-SA 4.0, and Severstal comes under Kaggle competition terms. Fine for a prototype, blocking for a product: a commercial version must retrain on licensed or self-collected images. A model trained on NC data is not automatically free of the NC condition.
+- **No CI yet.** The suite in `TEST_PLAN.md` §4 runs by hand. That is the largest sustainability gap in the repository.
+- **Two-person team.** Scope was deliberately kept to one active workstream per person; the interface and the store are the only new components in Phase 2 because the pipeline already existed.

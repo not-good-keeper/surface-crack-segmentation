@@ -105,7 +105,7 @@ def test_clean_product_is_explicit():
 
 
 def test_determinism():
-    print("\ndeterminism (NFR-6)")
+    print("\ndeterminism (NFR-06, T-15)")
     rng = np.random.default_rng(0)
     prob = softmax(rng.normal(0, 3, (3, 64, 64)).astype(np.float32))
     prof = Profile()

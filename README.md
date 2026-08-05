@@ -78,16 +78,22 @@ uncalibrated.
 
 ## Documentation
 
-| File | Contents |
-|---|---|
-| `docs/REQUIREMENTS.md` | Functional and non-functional requirements, and what has been withdrawn |
-| `docs/ARCHITECTURE.md` | Pipeline, model, post-processing, result schema, implementation status |
-| `docs/DATASET.md` | Every source, why it was accepted or rejected, and how synthetic data is used |
-| `docs/ATTRIBUTION.md` | Licences and credits. The corpus mixes CC0, CC-BY, CC-BY-NC and research-only terms |
-| `docs/DECISIONS.md` | Decision log with the evidence for each, including reversals |
-| `docs/RESULTS.md` | Which stored run supports which claim |
-| `docs/TEST_PLAN.md` | Acceptance criteria and test cases |
-| `docs/INTEGRATION.md` | How to call the model from an app |
+### Documents, in reading order
+
+Requirement IDs (`FR-nn`, `NFR-nn`) are the ones defined in the submitted **Phase 1**
+report; test IDs (`T-nn`) are **Phase 2**'s. Nothing here is renumbered — a document that
+invents its own IDs forces a reader holding the report to build the mapping themselves.
+
+| # | File | Contents |
+|---|---|---|
+| 1 | `docs/REQUIREMENTS.md` | Every FR and NFR with its status: met, partial, interface, withdrawn or not met — and where each is implemented |
+| 2 | `docs/ARCHITECTURE.md` | Pipeline, input preparation (§5.1), model, post-processing, result schema, status (§10.3), modularity and scale (§11) |
+| 3 | `docs/DATASET.md` | Reconciliation with the Phase 1 dataset plan (§0), the corpus, every source and why it was accepted or rejected, synthetic policy, what was not delivered (§8), quality gates (§9) |
+| 4 | `docs/TEST_PLAN.md` | T-01…T-30 with per-case status, traceability to requirements, and an honest automation count |
+| 5 | `docs/DECISIONS.md` | 21 decisions with the measurement behind each, including two corrections to earlier readings |
+| 6 | `docs/RESULTS.md` | Which stored run supports which claim |
+| 7 | `docs/INTEGRATION.md` | How to call the model from an app: tensor contract, class decision, geometry, limits |
+| 8 | `docs/ATTRIBUTION.md` | Licences. The corpus mixes CC0, CC-BY, CC-BY-NC and research-only terms |
 
 Known gaps and unmet claims are recorded where the work is, not in a separate list:
 open items in `ARCHITECTURE.md` §10.3, withdrawn requirements in `REQUIREMENTS.md`,
