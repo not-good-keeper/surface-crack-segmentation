@@ -108,12 +108,18 @@ def session_dashboard(conn: sqlite3.Connection, batch_run_id: int) -> dict[str, 
     latency = latency_stats(conn, batch_run_id)
 
     duration_min = None
+    duration_seconds = None
     throughput = None
     start = _parse_dt(run.get("started_at"))
     end = _parse_dt(run.get("finished_at"))
-    if start and end and end > start:
-        duration_min = (end - start).total_seconds() / 60
-        if duration_min and totals["processed"]:
+    if start and end and end >= start:
+        duration_seconds = (end - start).total_seconds()
+        duration_min = duration_seconds / 60
+        # Mock batches run synchronously and fast - a sub-few-second wall-clock span
+        # is real, but dividing by it extrapolates to a rate with no meaning (10
+        # images in 0.7s is not "858 images/min"). Report a rate only once the run
+        # spanned enough time to actually measure one.
+        if duration_seconds >= 3 and totals["processed"]:
             throughput = round(totals["processed"] / duration_min, 1)
 
     class_bars = [
@@ -139,6 +145,7 @@ def session_dashboard(conn: sqlite3.Connection, batch_run_id: int) -> dict[str, 
         "run": run,
         "totals": totals,
         "duration_min": round(duration_min, 1) if duration_min is not None else None,
+        "duration_seconds": round(duration_seconds, 1) if duration_seconds is not None else None,
         "throughput": throughput,
         "latency": latency,
         "charts": charts_svg,
