@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block heading %}Analytics{% endblock %}
+
+{% block content %}
+<section class="cards" aria-label="Analytics summary" id="summary-cards">
+  <div class="card">
+    <p class="card__label">Sessions</p>
+    <p class="card__value">{{ session_count|number }}</p>
+    <p class="card__sub">batch runs recorded</p>
+  </div>
+  <div class="card">
+    <p class="card__label">Images processed</p>
+    <p class="card__value">{{ agg_processed|number }}</p>
+    <p class="card__sub">across every session</p>
+  </div>
+  <div class="card">
+    <p class="card__label">Clean rate</p>
+    <p class="card__value">{{ agg_clean_pct }}%</p>
+    <p class="card__sub">{{ agg_totals.clean|number }} clean</p>
+  </div>
+  <div class="card">
+    <p class="card__label">Regions found</p>
+    <p class="card__value">{{ agg_regions_pct }}%</p>
+    <p class="card__sub">{{ agg_totals.regions_found|number }} products</p>
+  </div>
+  <div class="card{% if agg_totals.acquisition_failure or agg_totals.processing_failure %} card--failure{% endif %}">
+    <p class="card__label">Failed to read</p>
+    <p class="card__value">{{ (agg_totals.acquisition_failure + agg_totals.processing_failure)|number }}</p>
+    <p class="card__sub">excluded &mdash; never counted as clean</p>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="mix-heading">
+  <h2 class="panel__title" id="mix-heading">Outcome mix across every session</h2>
+  {{ charts.status_mix|safe }}
+  <ul class="legend">
+    {% for item in status_legend %}
+    <li class="legend__item"><span class="legend__swatch" style="background:{{ item.color }}" aria-hidden="true"></span>{{ item.label }}</li>
+    {% endfor %}
+  </ul>
+  <p class="note note--quiet">
+    Crack regions {{ agg_regions.crack|number }} &middot; scratch regions {{ agg_regions.scratch|number }} across every session,
+    computed from the same rows the Batch report and its exports use, so the two can never disagree.
+  </p>
+</section>
+
+<div class="dashboard-grid">
+  <section class="panel chart-card" aria-labelledby="trend-heading">
+    <h2 class="panel__title chart-card__title" id="trend-heading">Clean rate trend, oldest to newest</h2>
+    {{ charts.clean_trend|safe }}
+    <p class="note note--quiet">Share of processed images with no defect found, one point per session, in run order.</p>
+  </section>
+
+  <section class="panel chart-card" aria-labelledby="defect-heading">
+    <h2 class="panel__title chart-card__title" id="defect-heading">Crack vs. scratch regions, per session</h2>
+    {{ charts.defect_mix|safe }}
+    <ul class="legend">
+      {% for item in class_legend %}
+      <li class="legend__item"><span class="legend__swatch" style="background:{{ item.color }}" aria-hidden="true"></span>{{ item.label }}</li>
+      {% endfor %}
+    </ul>
+    <p class="note note--quiet">Class label is provisional &mdash; see Materials for measured typing accuracy by material.</p>
+  </section>
+</div>
+
+<section class="panel" aria-labelledby="sessions-heading">
+  <h2 class="panel__title" id="sessions-heading">Sessions</h2>
+  {% if sessions %}
+  <div class="session-grid">
+    {% for item in sessions %}
+    <a class="session-tile" href="/analytics/{{ item.run.batch_run_id }}">
+      <p class="session-tile__id">Run {{ item.run.batch_run_id }} &middot; {{ item.run.status }}</p>
+      <p class="session-tile__folder">{{ item.run.source_folder|split_last }}</p>
+      <p class="session-tile__meta"><span>{{ item.run.started_at|short_time }}</span><span>{{ item.run.material_code or "—" }}</span></p>
+      <p class="session-tile__meta">
+        <span>{{ item.totals.processed|number }} processed</span>
+        <span>{{ item.totals.clean_pct }}% clean</span>
+      </p>
+    </a>
+    {% endfor %}
+  </div>
+  <p class="note note--quiet">Most recent {{ sessions|length }} session{{ "s" if sessions|length != 1 }}. Open one for its full dashboard.</p>
+  {% else %}
+  <div class="empty-state">
+    <h3>No sessions yet</h3>
+    <p>Run a batch to see it here. <a class="link-action" href="/batch">Start a batch run</a>.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

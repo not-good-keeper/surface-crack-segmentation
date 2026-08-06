@@ -25,6 +25,7 @@ from app.dependencies import (
 from app.repositories import batch_repository as batches
 from app.repositories import inspection_repository as inspections
 from app.services import (
+    analytics_service,
     batch_service,
     history_service,
     inspection_service,
@@ -172,6 +173,32 @@ def batch(
         }
     )
     return _templates(request).TemplateResponse(request, "batch.html", context)
+
+
+@router.get("/analytics", response_class=HTMLResponse)
+def analytics(
+    request: Request,
+    conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(settings_dep),
+) -> HTMLResponse:
+    context = _base_context(request, conn, settings, "analytics")
+    context.update(analytics_service.overview(conn))
+    return _templates(request).TemplateResponse(request, "analytics.html", context)
+
+
+@router.get("/analytics/{batch_run_id}", response_class=HTMLResponse)
+def analytics_session(
+    request: Request,
+    batch_run_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(settings_dep),
+) -> HTMLResponse:
+    context = _base_context(request, conn, settings, "analytics")
+    dash = analytics_service.session_dashboard(conn, batch_run_id)
+    if dash is None:
+        raise HTTPException(status_code=404, detail=f"No session (batch run) {batch_run_id}")
+    context.update({"dash": dash})
+    return _templates(request).TemplateResponse(request, "analytics_session.html", context)
 
 
 @router.get("/history", response_class=HTMLResponse)

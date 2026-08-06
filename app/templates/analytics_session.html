@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block heading %}Session {{ dash.run.batch_run_id }} Analytics{% endblock %}
+{% block header_extra %}
+<a class="button button--small" href="/analytics">All sessions</a>
+<a class="button button--small" href="/batch?batch_run_id={{ dash.run.batch_run_id }}">Full report and export</a>
+{% endblock %}
+
+{% block content %}
+<section class="panel" aria-labelledby="session-heading">
+  <h2 class="panel__title" id="session-heading">{{ dash.run.source_folder|split_last }}</h2>
+  <dl class="datalist">
+    <dt>Material</dt><dd>{{ dash.run.material_name or dash.run.material_code or "&mdash;"|safe }}</dd>
+    <dt>Started</dt><dd>{{ dash.run.started_at|short_time }}</dd>
+    <dt>Finished</dt><dd>{{ dash.run.finished_at|short_time if dash.run.finished_at else "in progress" }}</dd>
+    <dt>Duration</dt><dd>{% if dash.duration_min %}{{ dash.duration_min }} min{% else %}&mdash;{% endif %}</dd>
+    <dt>Throughput</dt><dd>{% if dash.throughput %}{{ dash.throughput }} images/min{% else %}&mdash;{% endif %}</dd>
+    <dt>Status</dt><dd>{{ dash.run.status }}</dd>
+  </dl>
+</section>
+
+<section class="cards" aria-label="Session summary" id="summary-cards">
+  <div class="card">
+    <p class="card__label">Processed</p>
+    <p class="card__value">{{ dash.totals.processed|number }}</p>
+    <p class="card__sub">of {{ dash.run.image_count|number }}</p>
+  </div>
+  <div class="card">
+    <p class="card__label">Clean</p>
+    <p class="card__value">{{ dash.totals.clean|number }}</p>
+    <p class="card__sub">{{ dash.totals.clean_pct }}%</p>
+  </div>
+  <div class="card">
+    <p class="card__label">Regions found</p>
+    <p class="card__value">{{ dash.totals.regions_found|number }}</p>
+    <p class="card__sub">{{ dash.totals.regions_pct }}%</p>
+  </div>
+  <div class="card{% if dash.totals.failed %} card--failure{% endif %}">
+    <p class="card__label">Failed to read</p>
+    <p class="card__value">{{ dash.totals.failed|number }}</p>
+    <p class="card__sub">excluded &mdash; never counted as clean</p>
+  </div>
+  <div class="card">
+    <p class="card__label">Avg. latency</p>
+    <p class="card__value">{% if dash.latency.avg is not none %}{{ dash.latency.avg }}{% else %}&mdash;{% endif %}</p>
+    <p class="card__sub">ms &middot; p95 {{ dash.latency.p95 if dash.latency.p95 is not none else "—" }} ms</p>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="mix-heading">
+  <h2 class="panel__title" id="mix-heading">Outcome mix</h2>
+  {{ dash.charts.status_mix|safe }}
+  <ul class="legend">
+    {% for item in dash.status_legend %}
+    <li class="legend__item"><span class="legend__swatch" style="background:{{ item.color }}" aria-hidden="true"></span>{{ item.label }} &mdash; {{ item.value|number }}</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<div class="dashboard-grid">
+  <section class="panel chart-card" aria-labelledby="class-heading">
+    <h2 class="panel__title chart-card__title" id="class-heading">Defect regions by class</h2>
+    {{ dash.charts.class_breakdown|safe }}
+    <p class="note note--quiet">{{ dash.totals.regions_total|number }} regions across {{ dash.totals.regions_found|number }} products. Class label is provisional.</p>
+  </section>
+
+  <section class="panel chart-card" aria-labelledby="timeline-heading">
+    <h2 class="panel__title chart-card__title" id="timeline-heading">Processed over the run</h2>
+    {{ dash.charts.timeline|safe }}
+    <p class="note note--quiet">Cumulative images processed, by elapsed minutes since the run started.</p>
+  </section>
+</div>
+
+<section class="panel" aria-labelledby="latency-heading">
+  <h2 class="panel__title" id="latency-heading">Latency</h2>
+  {% if dash.latency.count %}
+  <dl class="datalist datalist--mono">
+    <dt>Average</dt><dd>{{ dash.latency.avg }} ms</dd>
+    <dt>Median</dt><dd>{{ dash.latency.median }} ms</dd>
+    <dt>p95</dt><dd>{{ dash.latency.p95 }} ms</dd>
+    <dt>Max</dt><dd>{{ dash.latency.max }} ms</dd>
+    <dt>Measured</dt><dd>{{ dash.latency.count|number }} of {{ dash.totals.processed|number }} images</dd>
+  </dl>
+  {% else %}
+  <p class="empty">No latency recorded for this session.</p>
+  {% endif %}
+</section>
+{% endblock %}

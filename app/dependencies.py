@@ -26,6 +26,7 @@ NAV_ITEMS = [
     {"key": "capture", "label": "Capture", "href": "/capture", "description": "Camera or photo, inspected now"},
     {"key": "regions", "label": "Regions", "href": "/regions", "description": "Region detail and measurements"},
     {"key": "batch", "label": "Batch", "href": "/batch", "description": "Run a folder and export the report"},
+    {"key": "analytics", "label": "Analytics", "href": "/analytics", "description": "Charts and trends per session"},
     {"key": "history", "label": "History", "href": "/history", "description": "Search past inspections"},
     {"key": "materials", "label": "Materials", "href": "/materials", "description": "Coverage, thresholds, model"},
     {"key": "status", "label": "Status", "href": "/status", "description": "Camera, model, database, disk"},

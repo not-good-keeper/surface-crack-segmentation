@@ -48,6 +48,7 @@
   .field--actions .button { flex: 1; }
   .viewer--split { grid-template-columns: 1fr; }
   .cards { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+  .dashboard-grid, .session-grid { grid-template-columns: minmax(0, 1fr); }
   .banner__headline { font-size: 19px; }
   .datalist { grid-template-columns: minmax(0, 1fr); gap: 0 0; }
   .datalist dt { margin-top: var(--sp-2); }
