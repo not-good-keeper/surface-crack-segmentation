@@ -30,6 +30,7 @@ Requirement IDs are Phase 1's (`FR-nn`, `NFR-nn`); test IDs are Phase 2's (`T-nn
 | 019 | A long run needs a schedule, or selection becomes a lottery | Holds |
 | 020 | The verdict is withdrawn; the system reports evidence | Holds |
 | 021 | Test share cut from 15 % to 5 % | Holds |
+| 022 | Input resolution is not the bottleneck: 512 tried and lost | Holds; negative result |
 
 ---
 
@@ -185,3 +186,49 @@ At a 15 % test share the scarce factory materials — epoxy 49 masks, ceramic 16
 Stratification matters more than the ratio: a pooled shuffle would let one material land mostly in test and another mostly in train by chance, and at 12 masks that decides whether a per-material number exists at all.
 
 The cost is explicit: **`test_factory_scratch` is 31 images.** Its clDice carries a wide interval and is quoted with the count attached, always.
+
+## ADR-022 — Input resolution is not the bottleneck: 512 was tried and lost
+
+The resize regime (ADR-018, T-02) left an obvious suspect. Test frames have a median
+long side of 793 px and a p90 of 1262; scaling those to 256 is a 3.1–4.9× reduction,
+which takes a 4 px crack to 0.8–1.3 px — at or below the sampling limit. No amount of
+training recovers a structure thinner than a pixel, so 256 looked like a hard ceiling on
+everything downstream.
+
+It was tested rather than assumed, twice, and it is not the ceiling.
+
+**Without retraining.** `bench/tta_probe.py` ran the 256 weights at 384 (the network is
+fully convolutional, so this needs no new training). Multi-scale 256+384 scored **−0.003
+clDice** and dropped detection from 0.731 to 0.679. Flip averaging, measured in the same
+sweep, was worth **+0.011** and is cheap; multi-scale was rejected on the measurement.
+
+**With retraining.** `run_v13.sh` fine-tuned at 512 from the converged 256 checkpoint —
+warm-started because a cold 512 run at ~500 s/epoch could not converge inside the time
+available, and because progressive resizing is the standard technique for exactly this.
+
+| | v12 (256) | v13 (512) |
+|---|---:|---:|
+| best headline clDice | **0.6080** | 0.5731 |
+| best headline IoU | 0.4029 | **0.4063** |
+| epoch cost | ~220 s | ~500 s |
+
+v13 led by 0.111 at epoch 1 purely from the warm start, and that lead decayed
+monotonically — +0.099 at ep2, +0.023 at ep8, and negative from ep12 onward. Per epoch
+it learned *slower* than the 256 run did from a cold start. Its `val_clD` finished at
+0.799 against v12's 0.792, so it was not learning less; it simply did not transfer the
+extra resolution to the factory split.
+
+**The sub-finding is the interesting part.** v13's IoU *exceeded* v12's best while its
+clDice trailed. Higher resolution improved agreement on defect **area** and not on
+centreline **connectivity** — which is the property clDice exists to measure and the one
+that matters for a crack. Resolution buys the metric we care about least.
+
+Recorded as a negative result rather than deleted. The confound is stated: v13 is a
+fine-tune of v12, so a win would not have cleanly separated "512 helps" from "24 more
+epochs help". It lost, which makes the confound moot in the direction that matters —
+512 failed to beat 256 *even with* 24 extra epochs of training on top of it.
+
+**Consequence.** The 256 model ships. The remaining headroom on `test_factory` clDice is
+not in input resolution, and the next thing to try is random-tile training with tiled
+inference at native scale (ADR-018's rejected third path), which keeps native resolution
+*and* whole-part context — not a larger resize.
