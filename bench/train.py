@@ -135,7 +135,7 @@ def class_weights(ds, n_cls, device, cap=6.0):
     return torch.tensor(w, dtype=torch.float32, device=device)
 
 
-def measure_cost(model, device, size=256):
+def measure_cost(model, device, size=256):  # size passed by caller
     """Params, GPU latency, and CPU latency -- the deployment-relevant number."""
     model.eval()
     n = M.count_params(model)
@@ -204,6 +204,13 @@ def main() -> int:
     ap.add_argument("--eval-batches", type=int, default=40)
     ap.add_argument("--ema", type=float, default=0.0,
                     help="EMA decay on weights, e.g. 0.99; 0 disables")
+    ap.add_argument("--size", type=int, default=256,
+                    help="input edge. 256 downscales a 793 px frame ~3x, taking a 4 px "
+                         "crack under 1.5 px; 512 halves that loss for ~4x the compute")
+    ap.add_argument("--init", default=None,
+                    help="warm-start from a checkpoint (.pt or .best.pt). The network "
+                         "is fully convolutional, so weights learned at one input size "
+                         "load at another and only the scale has to be relearned")
     ap.add_argument("--resize", action="store_true",
                     help="scale the whole frame to 256 instead of cropping at native "
                          "scale; matches app/inference.py (T-02)")
@@ -236,7 +243,7 @@ def main() -> int:
 
     ds_kw = dict(classes=args.classes, camera_profile=args.camera_profile,
                  scratch_frac=args.scratch_frac, prep=args.prep,
-                 resize=args.resize)
+                 resize=args.resize, size=args.size)
     tr = CrackPatches("train", train=True, synth_dir=args.synth,
                       synth_frac=args.synth_frac, synth_kinds=args.synth_kinds,
                       exclude_materials=args.exclude_materials, seed=args.seed,
@@ -256,6 +263,19 @@ def main() -> int:
                          "would be trained entirely on synthetic data. Re-cut splits.")
 
     model = M.build(args.model, classes=args.classes).to(device)
+    if args.init:
+        # Starting a higher-resolution run from the converged lower-resolution weights
+        # rather than from ImageNet. What a defect looks like is already learned; only
+        # its scale changed, and that is a far smaller thing to relearn than the task.
+        blob = torch.load(args.init, map_location=device)
+        state = blob["state"] if isinstance(blob, dict) and "state" in blob else blob
+        missing, unexpected = model.load_state_dict(state, strict=False)
+        if missing or unexpected:
+            raise SystemExit(f"--init {args.init} does not match {args.model}: "
+                             f"{len(missing)} missing, {len(unexpected)} unexpected "
+                             f"keys. Warm-starting from the wrong architecture would "
+                             f"train from a state nothing describes.")
+        print(f"  warm start from {Path(args.init).name}")
     cw = (class_weights(tr, args.classes, device, cap=args.class_weight_cap)
           if args.classes > 1 else None)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
@@ -407,7 +427,7 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             print(f"  {split}: SKIP ({type(e).__name__}: {str(e)[:60]})")
 
-    result["cost"] = measure_cost(model, device)
+    result["cost"] = measure_cost(model, device, size=args.size)
     print(f"  params={result['cost']['params']/1e6:.2f}M "
           f"cpu={result['cost']['cpu_ms']:.0f}ms gpu={result['cost']['gpu_ms']:.1f}ms")
 

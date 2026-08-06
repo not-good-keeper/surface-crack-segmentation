@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block heading %}Materials and Thresholds{% endblock %}
+
+{% block content %}
+<section class="panel" aria-labelledby="coverage-heading">
+  <h2 class="panel__title" id="coverage-heading">Measured coverage &mdash; read-only</h2>
+  <div class="table-scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Material</th>
+          <th scope="col">Status</th>
+          <th scope="col">Training masks</th>
+          <th scope="col">Class typing</th>
+          <th scope="col">Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for material in materials %}
+        <tr>
+          <th scope="row">{{ material.material_name }}</th>
+          <td><span class="status status--support-{{ material.support_status }}">{{ material.support_label }}</span></td>
+          <td class="num">{{ material.training_masks_display }}</td>
+          <td class="num">{% if material.class_typing is not none %}{{ material.class_typing }}{% else %}&mdash;{% endif %}</td>
+          <td class="cell-notes">{{ material.notes }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="note note--quiet">
+    Read from the evaluation metrics file (<span class="mono">{{ metrics_source|split_last }}</span>), not typed into the interface,
+    so it cannot drift from the measured numbers.
+  </p>
+  {% if overall %}
+  <p class="note">
+    Detection is around {{ (overall.detection_rate * 100)|round|int }}% of defects, but the correct
+    <em>type</em> is assigned to only about {{ (overall.crack_pixel_typing * 100)|round|int }}% of crack pixels,
+    biased towards {{ overall.typing_bias }}. The mask is the primary output and the class label is provisional.
+    Scratch evidence is {{ overall.scratch_evidence_steel_masks }} of {{ overall.scratch_evidence_total_masks }} masks on steel,
+    so a scratch label on ceramic, plastic or glass is transfer, not evidence.
+  </p>
+  {% endif %}
+</section>
+
+<div class="two-column">
+  <section class="panel" aria-labelledby="thresholds-heading">
+    <h2 class="panel__title" id="thresholds-heading">Active thresholds</h2>
+    <dl class="datalist datalist--mono">
+      <dt>crack_thresh</dt><dd>{{ thresholds.stored.crack_threshold }}</dd>
+      <dt>scratch_thresh</dt><dd>{{ thresholds.stored.scratch_threshold }}</dd>
+      <dt>min_area_px</dt><dd>{{ thresholds.stored.minimum_area_px }}</dd>
+      <dt>min_skeleton_px</dt><dd>{{ thresholds.stored.minimum_skeleton_px }}</dd>
+      <dt>profile version</dt><dd>v{{ thresholds.stored.version_no }}</dd>
+    </dl>
+    <p class="note note--quiet">
+      Read from the active model profile at start-up &mdash; not copied into the UI.
+      Source: <span class="mono">{{ thresholds.source }}</span>.
+    </p>
+    {% if not thresholds.in_sync %}
+    <p class="note note--warning">
+      The stored profile no longer matches the module. Re-seed the profile so stored inspections
+      keep resolving to the thresholds that produced them.
+    </p>
+    {% endif %}
+    <p class="note note--quiet">
+      The class decision is not argmax: each foreground class is compared against its own floor,
+      a pixel below both is background, and where both pass the higher score wins.
+    </p>
+  </section>
+
+  <section class="panel" aria-labelledby="model-heading">
+    <h2 class="panel__title" id="model-heading">Model in use</h2>
+    <dl class="datalist datalist--mono">
+      <dt>File</dt><dd class="break">{{ model.file_name }}</dd>
+      <dt>Version</dt><dd>{{ model.version }}</dd>
+      <dt>SHA-256</dt><dd class="break">{{ model.artefact_sha256 }}</dd>
+      <dt>Parameters</dt><dd>{{ model.parameter_count|number }}</dd>
+      <dt>Size</dt><dd>{{ model.size_mb }} MB {{ model.precision }}</dd>
+      <dt>Latency</dt><dd>{{ model.latency_ms }} ms &mdash; {{ model.latency_conditions }}</dd>
+      <dt>Input</dt><dd>{{ model.input_name }} {{ model.input_shape }} {{ model.channel_order }}</dd>
+      <dt>Output</dt><dd>{{ model.output_name }} {{ model.output_shape }}</dd>
+      <dt>Taxonomy</dt><dd>{{ model.output_taxonomy|join(", ") }}</dd>
+      <dt>Activation</dt><dd>{{ model.activation }}</dd>
+      <dt>File present</dt><dd>{% if model.file_present %}yes &mdash; verified at load{% else %}no &mdash; mock mode does not need one{% endif %}</dd>
+    </dl>
+    <p class="note note--quiet">{{ model.arm_note }}</p>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block heading %}System Status{% endblock %}
+
+{% block header_extra %}
+<form method="post" action="/api/status/check" id="recheck-form">
+  <button type="submit" class="button button--primary" id="run-checks">Run checks again</button>
+</form>
+{% endblock %}
+
+{% block content %}
+<div class="banner banner--{{ 'clean' if status.overall == 'ok' else ('check_station' if status.overall == 'failed' else 'could_not_process') }}" role="status">
+  <p class="banner__headline">{{ status.overall_label }}</p>
+  <p class="banner__detail">Last checked {{ status.checked_at|short_time }} &middot; provider: {{ status.provider }}</p>
+  {% if status.blocks_inspection %}
+  <p class="banner__reason">Inspection is stopped while a check is failing.</p>
+  {% endif %}
+</div>
+
+<section class="status-grid" aria-label="Checks" id="status-grid">
+  {% for check in status.checks %}
+  <article class="check check--{{ check.state }}">
+    <header class="check__header">
+      <h2 class="check__title">{{ check.label }}</h2>
+      <span class="status status--check-{{ check.state }}">{{ check.state_label }}</span>
+    </header>
+    <p class="check__detail">{{ check.detail }}</p>
+    {% if check.value %}<p class="check__value mono">{{ check.value }}</p>{% endif %}
+    {% if check.action %}<p class="check__action"><strong>Action:</strong> {{ check.action }}</p>{% endif %}
+    <p class="check__time">Checked {{ check.checked_at|short_time }}</p>
+  </article>
+  {% endfor %}
+</section>
+
+{% if settings.inspection_provider == "mock" and demo_mode %}
+<section class="panel" aria-labelledby="simulate-heading">
+  <h2 class="panel__title" id="simulate-heading">Fault simulation <span class="tag tag--demo">demo control</span></h2>
+  <p class="note">
+    Mock mode only. Injecting a fault here shows how the station reports a real one:
+    the health strip changes on every screen and the Live screen stops showing inspection results.
+  </p>
+  <form class="filter-bar" id="simulate-form">
+    <div class="field">
+      <label for="simulate">Simulate</label>
+      <select id="simulate" name="simulate">
+        {% for key, label in status.simulations.items() %}
+        <option value="{{ key }}"{% if status.simulation == key %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field field--actions">
+      <button type="submit" class="button">Apply and re-check</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/status.js" defer></script>
+{% endblock %}

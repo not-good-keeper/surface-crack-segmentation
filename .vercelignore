@@ -1,0 +1,16 @@
+# Keep the deployment small: only the demo bundle and the code are needed.
+tests/
+docs/screenshots/
+pdfpages/
+.pytest_cache/
+__pycache__/
+*.pyc
+.ruff_cache/
+.mypy_cache/
+
+# Generated at runtime or too large to ship. The demo database and its images are
+# built by scripts/build_demo_bundle.py and are NOT ignored - see DEPLOYMENT.md.
+data/exports/
+data/records.jsonl
+data/inspection.db-wal
+data/inspection.db-shm

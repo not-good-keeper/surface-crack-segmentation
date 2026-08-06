@@ -1,0 +1,102 @@
+{
+  "_comment": [
+    "Measured coverage produced by evaluation on the frozen factory split.",
+    "The Materials screen reads this file. Numbers are NOT typed into templates,",
+    "so the screen cannot drift from the measured values (Phase 2 report 4.7 / T-22).",
+    "Replace this file with the metrics file emitted by the evaluation run when the",
+    "final weights land; no template or Python change is required."
+  ],
+  "metrics_version": "phase2-frozen-split",
+  "generated_at": "2026-08-01T00:00:00",
+  "split": "frozen factory split",
+  "overall": {
+    "detection_rate": 0.96,
+    "crack_pixel_typing": 0.49,
+    "typing_bias": "scratch",
+    "scratch_evidence_steel_masks": 624,
+    "scratch_evidence_total_masks": 724,
+    "note": "Detection and class typing are reported separately and never merged into one number (NFR-08 / T-18)."
+  },
+  "model": {
+    "file_name": "smpslim_timm-mobilenetv3_small_100_v8a.onnx",
+    "version": "v8a",
+    "artefact_sha256": "9f2c00000000000000000000000000000000000000000000000000000000ea41",
+    "artefact_sha256_status": "placeholder - replaced by the real export hash at integration",
+    "parameter_count": 1430000,
+    "size_mb": 5.8,
+    "precision": "float32",
+    "latency_ms": 26.0,
+    "latency_conditions": "median over 500 runs, 256x256, one desktop CPU thread",
+    "input_name": "input",
+    "input_shape": [1, 3, 256, 256],
+    "output_name": "logits",
+    "output_shape": [1, 3, 256, 256],
+    "channel_order": "RGB",
+    "output_taxonomy": ["0 = background", "1 = crack", "2 = scratch"],
+    "activation": "none in graph - softmax applied by the caller",
+    "arm_latency": null,
+    "arm_note": "No ARM or phone latency measurement is currently claimed."
+  },
+  "materials": [
+    {
+      "material_code": "steel",
+      "material_name": "Steel",
+      "support_status": "supported",
+      "training_masks": null,
+      "training_masks_display": "majority of corpus",
+      "class_typing": 0.702,
+      "cl_dice": 0.529,
+      "notes": "Best class typing, weakest geometry (clDice 0.529) - steel cracks are the thinnest in the corpus at about 4 px"
+    },
+    {
+      "material_code": "plastic",
+      "material_name": "Plastic",
+      "support_status": "one_product_only",
+      "training_masks": 936,
+      "training_masks_display": "936",
+      "class_typing": null,
+      "cl_dice": null,
+      "notes": "All the real masks are PVC pipe. A moulded casing is not covered."
+    },
+    {
+      "material_code": "ceramic",
+      "material_name": "Ceramic",
+      "support_status": "thin_coverage",
+      "training_masks": 120,
+      "training_masks_display": "120",
+      "class_typing": 0.315,
+      "cl_dice": null,
+      "notes": "Detection is usable, typing is weak"
+    },
+    {
+      "material_code": "epoxy",
+      "material_name": "Epoxy",
+      "support_status": "typing_unsupported",
+      "training_masks": 0,
+      "training_masks_display": "0",
+      "class_typing": 0.279,
+      "cl_dice": null,
+      "notes": "Detection works; the type label is transfer from other materials"
+    },
+    {
+      "material_code": "glass",
+      "material_name": "Glass",
+      "support_status": "not_supported",
+      "training_masks": 12,
+      "training_masks_display": "12",
+      "class_typing": null,
+      "cl_dice": null,
+      "notes": "Not enough evidence to report anything"
+    },
+    {
+      "material_code": "non_steel_metal",
+      "material_name": "Non-steel metal",
+      "support_status": "not_supported",
+      "training_masks": 0,
+      "training_masks_display": "0",
+      "class_typing": null,
+      "cl_dice": null,
+      "notes": "No masks in the corpus"
+    }
+  ]
+}

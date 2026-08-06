@@ -1,0 +1,16 @@
+# Real-mode dependencies: the inference core.
+#
+#   .venv-app/Scripts/python.exe -m pip install -r requirements.txt -r requirements-real.txt
+#
+# Deliberately NOT in requirements.txt. Mock mode imports none of these — asserted by
+# tests/test_deployment.py::test_mock_mode_imports_nothing_from_the_inference_stack —
+# and together they come to roughly 290 MB installed, over the 250 MB serverless
+# function limit. Keeping them separate is what lets one codebase serve both the demo
+# deployment and the station.
+#
+# Version floors rather than pins: these are the interfaces app/inference.py and
+# app/postprocess.py use, and all of them have been stable for years. The versions the
+# project was measured against are recorded in the Phase 2 report.
+onnxruntime>=1.18
+opencv-python-headless>=4.10
+scikit-image>=0.24

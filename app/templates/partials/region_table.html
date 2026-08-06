@@ -1,0 +1,35 @@
+{# Region evidence. Class, length, maximum width and area per region - and no score,
+   because the model's scores are not calibrated and must not be rendered as one. #}
+<div class="panel">
+  <h2 class="panel__title" id="regions-heading">Regions</h2>
+  {% if regions %}
+  <div class="table-scroll">
+    <table class="table table--compact" aria-labelledby="regions-heading">
+      <thead>
+        <tr>
+          <th scope="col">#</th>
+          <th scope="col">Class</th>
+          <th scope="col">Length</th>
+          <th scope="col">Width</th>
+          <th scope="col">Area</th>
+          <th scope="col"><span class="visually-hidden">Open</span></th>
+        </tr>
+      </thead>
+      <tbody id="region-rows">
+        {% for region in regions %}
+        <tr>
+          <th scope="row">{{ region.region_index }}</th>
+          <td>{{ region.class_code }}</td>
+          <td class="num">{{ region.length_px|px }}</td>
+          <td class="num">{{ region.max_width_px|px }}</td>
+          <td class="num">{{ region.area_px|number }}</td>
+          <td><a class="link-action" href="/regions?inspection_id={{ inspection_id }}&amp;region={{ region.region_index }}">Open</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty">No regions recorded for this inspection.</p>
+  {% endif %}
+</div>

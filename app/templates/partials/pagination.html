@@ -1,0 +1,32 @@
+<nav class="pagination" aria-label="Pages">
+  <p class="pagination__summary">
+    {% if page.total %}Showing {{ page.first_index }}&ndash;{{ page.last_index }} of {{ page.total|number }}{% else %}No matching inspections{% endif %}
+  </p>
+  <ul class="pagination__list">
+    <li>
+      {% if page.has_prev %}
+      <a class="button button--small" href="?{{ filters.query_string(page=page.page - 1) }}" rel="prev">&lsaquo; Previous</a>
+      {% else %}
+      <span class="button button--small button--disabled" aria-disabled="true">&lsaquo; Previous</span>
+      {% endif %}
+    </li>
+    {% for number in page_numbers %}
+    <li>
+      {% if number == page.page %}
+      <span class="pagination__current" aria-current="page">{{ number }}</span>
+      {% elif number == 0 %}
+      <span class="pagination__gap">&hellip;</span>
+      {% else %}
+      <a class="pagination__page" href="?{{ filters.query_string(page=number) }}">{{ number }}</a>
+      {% endif %}
+    </li>
+    {% endfor %}
+    <li>
+      {% if page.has_next %}
+      <a class="button button--small" href="?{{ filters.query_string(page=page.page + 1) }}" rel="next">Next &rsaquo;</a>
+      {% else %}
+      <span class="button button--small button--disabled" aria-disabled="true">Next &rsaquo;</span>
+      {% endif %}
+    </li>
+  </ul>
+</nav>

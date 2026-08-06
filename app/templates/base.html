@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ self.heading() }}{% endblock %} &mdash; {{ app_title }}</title>
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/layout.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/responsive.css">
+  <link rel="icon" href="/static/icons/favicon.svg" type="image/svg+xml">
+</head>
+<body data-screen="{{ active }}">
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="app-bar">
+    <span class="app-bar__title">{{ app_title }}</span>
+    <span class="app-bar__station" title="Station">{{ station }}</span>
+  </header>
+
+  <div class="shell">
+    {% include "partials/navigation.html" %}
+
+    <main id="main" class="main" tabindex="-1">
+      <div class="page-header">
+        <h1 class="page-header__title">{% block heading %}{% endblock %}</h1>
+        <div class="page-header__extra">{% block header_extra %}{% endblock %}</div>
+      </div>
+
+      {% if health is defined %}{% include "partials/health_strip.html" %}{% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

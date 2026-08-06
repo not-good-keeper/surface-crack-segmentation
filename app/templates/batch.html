@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block heading %}Batch Run and Report{% endblock %}
+
+{% block content %}
+<section class="panel" aria-labelledby="run-config">
+  <h2 class="panel__title" id="run-config">Run configuration</h2>
+  <form class="filter-bar" id="batch-form" method="post" action="/api/batches">
+    <div class="field">
+      <label for="source_folder">Source folder</label>
+      <select id="source_folder" name="source_folder" required>
+        {% for folder in folders %}
+        <option value="{{ folder.relative }}">{{ folder.name }} ({{ folder.image_count }} files)</option>
+        {% else %}
+        <option value="">No folders under the batch root</option>
+        {% endfor %}
+      </select>
+      <p class="field__hint">Folders inside the configured batch root only. A path outside it is refused.</p>
+    </div>
+    <div class="field">
+      <label for="material">Material</label>
+      <select id="material" name="material">
+        {% for material in materials %}
+        <option value="{{ material.material_code }}">{{ material.material_name }}{% if material.is_limited %} &mdash; {{ material.support_label }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="product_prefix">Product prefix</label>
+      <input type="text" id="product_prefix" name="product_prefix" placeholder="batch-77/">
+    </div>
+    <div class="field">
+      <label for="model_display">Model file</label>
+      <input type="text" id="model_display" value="{{ model.file_name }} ({{ model.precision }})" readonly>
+    </div>
+    <div class="field field--actions">
+      <button type="submit" class="button button--primary" id="start-run">Start run</button>
+      <button type="button" class="button" id="dry-run">Dry run</button>
+    </div>
+  </form>
+  <p class="form-error" id="batch-error" role="alert" hidden></p>
+</section>
+
+{% if report %}
+<section class="panel" aria-labelledby="progress-heading" id="progress-section">
+  <h2 class="panel__title" id="progress-heading">Progress</h2>
+  <div class="progress" id="progress-bar-wrap">
+    <div class="progress__track">
+      <div class="progress__fill" id="progress-fill"
+           style="width: {% if report.totals.processed and report.run.image_count %}{{ (report.totals.processed / report.run.image_count * 100)|round(0, 'floor') }}{% else %}0{% endif %}%"></div>
+    </div>
+    <p class="progress__label" id="progress-label" aria-live="polite">
+      {{ report.totals.processed }} / {{ report.run.image_count }} images
+      &middot; run {{ report.run.batch_run_id }}
+      &middot; {{ report.run.status }}
+      {% if report.progress and report.progress.eta_seconds %} &middot; est. {{ report.progress.eta_seconds }} s remaining{% endif %}
+    </p>
+  </div>
+</section>
+
+<section class="cards" aria-label="Run summary" id="summary-cards">
+  <div class="card">
+    <p class="card__label">Processed</p>
+    <p class="card__value" id="card-processed">{{ report.totals.processed|number }}</p>
+    <p class="card__sub">of {{ report.run.image_count|number }}</p>
+  </div>
+  <div class="card">
+    <p class="card__label">With regions</p>
+    <p class="card__value" id="card-regions">{{ report.totals.regions_found|number }}</p>
+    <p class="card__sub">{{ report.totals.regions_pct }}%</p>
+  </div>
+  <div class="card">
+    <p class="card__label">Clean</p>
+    <p class="card__value" id="card-clean">{{ report.totals.clean|number }}</p>
+    <p class="card__sub">{{ report.totals.clean_pct }}%</p>
+  </div>
+  <div class="card card--failure">
+    <p class="card__label">Failed to read</p>
+    <p class="card__value" id="card-failed">{{ report.totals.failed|number }}</p>
+    <p class="card__sub">excluded &mdash; never counted as clean</p>
+  </div>
+  <div class="card">
+    <p class="card__label">Regions found</p>
+    <p class="card__value" id="card-region-total">{{ report.totals.regions_total|number }}</p>
+    <p class="card__sub">{{ report.totals.crack_regions }} crack / {{ report.totals.scratch_regions }} scratch</p>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="results-heading">
+  <h2 class="panel__title" id="results-heading">Results</h2>
+  <div class="table-scroll">
+    <table class="table table--compact">
+      <thead>
+        <tr>
+          <th scope="col">Image</th>
+          <th scope="col">Product ID</th>
+          <th scope="col">Material</th>
+          <th scope="col">Status</th>
+          <th scope="col">Regions</th>
+          <th scope="col">Classes</th>
+          <th scope="col">Max length</th>
+          <th scope="col">Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in report.rows %}
+        <tr>
+          <td><a class="link-action" href="/inspections/{{ row.inspection_id }}">{{ (row.source_image_path or "")|replace("\\", "/") | split_last }}</a></td>
+          <td>{{ row.product_id or "&mdash;"|safe }}</td>
+          <td>{{ row.material_code or "&mdash;"|safe }}</td>
+          <td><span class="status status--{{ row.status }}">{{ row.status|status_label }}</span></td>
+          <td class="num">{% if row.status in ("acquisition_failure", "processing_failure") %}&mdash;{% else %}{{ row.region_count }}{% endif %}</td>
+          <td>{{ row.class_breakdown|breakdown }}</td>
+          <td class="num">{% if row.max_length_px %}{{ row.max_length_px|px }}{% else %}&mdash;{% endif %}</td>
+          <td class="num">{% if row.latency_ms %}{{ row.latency_ms }} ms{% else %}&mdash;{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="empty">No rows for this filter.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="button-row">
+    <a class="button" href="/api/batches/{{ report.run.batch_run_id }}/export.csv{% if only_with_regions %}?only_with_regions=true{% endif %}">Export CSV</a>
+    <a class="button" href="/api/batches/{{ report.run.batch_run_id }}/export.json{% if only_with_regions %}?only_with_regions=true{% endif %}">Export JSON</a>
+    <a class="chip{% if not only_with_regions and not status_filter %} chip--current{% endif %}" href="?batch_run_id={{ report.run.batch_run_id }}">All images</a>
+    <a class="chip{% if only_with_regions %} chip--current{% endif %}" href="?batch_run_id={{ report.run.batch_run_id }}&amp;only_with_regions=true">Only images with regions</a>
+    <a class="chip{% if status_filter == 'clean' %} chip--current{% endif %}" href="?batch_run_id={{ report.run.batch_run_id }}&amp;status=clean">Clean only</a>
+    <a class="chip{% if status_filter == 'acquisition_failure' %} chip--current{% endif %}" href="?batch_run_id={{ report.run.batch_run_id }}&amp;status=acquisition_failure">Failures only</a>
+  </div>
+  <p class="note note--quiet">Summary cards, this table and both exports are answered by the same query, so the totals always reconcile.</p>
+</section>
+{% else %}
+<div class="panel empty-state">
+  <h2>No batch run yet</h2>
+  <p>Choose a folder above and start a run. Runs are listed here once they exist.</p>
+</div>
+{% endif %}
+
+{% if runs %}
+<section class="panel" aria-labelledby="runs-heading">
+  <h2 class="panel__title" id="runs-heading">Recent runs</h2>
+  <div class="table-scroll">
+    <table class="table table--compact">
+      <thead>
+        <tr>
+          <th scope="col">Run</th><th scope="col">Folder</th><th scope="col">Material</th>
+          <th scope="col">Started</th><th scope="col">Images</th><th scope="col">Regions</th>
+          <th scope="col">Clean</th><th scope="col">Failed</th><th scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in runs %}
+        <tr{% if run.batch_run_id == batch_run_id %} class="row--current"{% endif %}>
+          <th scope="row"><a class="link-action" href="?batch_run_id={{ run.batch_run_id }}">{{ run.batch_run_id }}</a></th>
+          <td class="mono">{{ run.source_folder|split_last }}</td>
+          <td>{{ run.material_code or "&mdash;"|safe }}</td>
+          <td>{{ run.started_at|short_time }}</td>
+          <td class="num">{{ run.image_count }}</td>
+          <td class="num">{{ run.regions_found_count }}</td>
+          <td class="num">{{ run.clean_count }}</td>
+          <td class="num">{{ run.failure_count }}</td>
+          <td>{{ run.status }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/batch.js" defer></script>
+{% endblock %}

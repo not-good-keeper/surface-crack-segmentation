@@ -194,6 +194,16 @@ class CrackPatches(Dataset):
         if img is None:
             img = np.zeros((self.size, self.size, 3), np.uint8)
             msk = np.zeros((self.size, self.size), np.uint8)
+        elif img.shape[0] != self.size or img.shape[1] != self.size:
+            # Patches are composited once, at 256, and reused by every run. A run at a
+            # different input size would otherwise hand the collate a 256 tensor among
+            # 512s and die on the first synthetic draw. Scaling them here keeps their
+            # defect width in the same ratio to the real frames' as it was at 256, so
+            # this changes the resolution and not the mix the model is learning from.
+            img = cv2.resize(img, (self.size, self.size),
+                             interpolation=cv2.INTER_LINEAR)
+            msk = cv2.resize(msk, (self.size, self.size),
+                             interpolation=cv2.INTER_NEAREST)
         return img, msk, KIND_CLASS.get(str(r.kind), BACKGROUND)
 
     def _pick_row(self, i, rng):
@@ -238,8 +248,16 @@ class CrackPatches(Dataset):
                 img = np.zeros((self.size, self.size, 3), np.uint8)
                 msk = np.zeros((self.size, self.size), np.uint8)
             if self.resize:
-                img = cv2.resize(img, (self.size, self.size), cv2.INTER_LINEAR)
-                msk = cv2.resize(msk, (self.size, self.size), cv2.INTER_NEAREST)
+                # Keyword, not positional: cv2.resize's third positional parameter is
+                # `dst`, so passing the interpolation flag there silently selected the
+                # bilinear default for both. On a label map that blurs class edges
+                # before the >127 threshold. Measured at +0.24 % foreground over
+                # test_factory with 3 of 156 images shifting more than 10 %, so it
+                # moved no reported metric -- but a mask must not be interpolated.
+                img = cv2.resize(img, (self.size, self.size),
+                                 interpolation=cv2.INTER_LINEAR)
+                msk = cv2.resize(msk, (self.size, self.size),
+                                 interpolation=cv2.INTER_NEAREST)
             else:
                 img, msk = self._crop(img, msk, rng, centre_on_crack=want_pos)
             if self.train:

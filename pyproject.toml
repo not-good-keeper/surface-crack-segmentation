@@ -1,0 +1,45 @@
+[project]
+name = "vision404-inspection-ui"
+version = "2.0.0"
+description = "Local interface for the VISION 404 industrial surface-defect inspection pipeline"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+exclude = ["data", "docs", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+  "E501",   # long lines are handled by the formatter, not enforced here
+  "B008",   # FastAPI's Depends() in a default argument is the documented pattern
+  "SIM105", # contextlib.suppress is not always clearer than try/except
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]
+
+# The inference core and its entry points are shared with the training stack, which
+# runs on the Python 3.9 environment that holds torch. Ruff is set to py311 here, so
+# several of its rewrites are actively wrong for these files: `datetime.UTC` (UP017)
+# and `zip(strict=)` (B905) do not exist before 3.10/3.11, and applying them would
+# break `bench/` and `app/batch.py` on the environment that trains the model.
+#
+# I001 is excluded for a different reason: these modules insert their own directory on
+# sys.path before importing siblings, so the import order is load-bearing and already
+# carries `# noqa: E402`.
+#
+# This is a deliberate boundary, not an exemption to clean up later — the constraint
+# is that one codebase serves two interpreters.
+"app/inference.py" = ["I001", "B905", "UP017"]
+"app/postprocess.py" = ["I001", "UP017"]
+"app/batch.py" = ["I001", "C408", "UP024", "UP017"]
+"app/app.py" = ["I001"]
+"app/test_pipeline.py" = ["I001"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
+markers = ["ui: browser tests that need Playwright and a browser binary"]

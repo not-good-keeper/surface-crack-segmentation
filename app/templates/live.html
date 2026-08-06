@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block heading %}Live Inspection &mdash; {{ station }}{% endblock %}
+
+{% block header_extra %}
+  {% if demo_mode and settings.inspection_provider == "mock" %}
+  <div class="demo-controls" id="demo-controls">
+    <span class="tag tag--demo">Demo mode</span>
+    <button type="button" class="button" id="next-inspection">Next inspection</button>
+    <label class="toggle">
+      <input type="checkbox" id="auto-advance" checked>
+      <span>Advance automatically</span>
+    </label>
+  </div>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+{% if health.blocks_inspection %}
+  <div class="banner banner--check_station" role="alert">
+    <p class="banner__headline">CHECK STATION</p>
+    <p class="banner__detail">Failing: {{ health.failing|join(", ") }}</p>
+    <p class="banner__reason">Inspection is stopped until the failing check clears. <a href="/status">Open Status</a></p>
+  </div>
+{% endif %}
+
+{% if view %}
+<div class="live" id="live-root" data-inspection-id="{{ view.inspection.inspection_id }}" data-poll-ms="{{ poll_ms }}">
+  <section class="live__image panel" aria-label="Overlay">
+    {% if view.has_overlay %}
+      <img class="image-frame" id="live-overlay"
+           src="{{ view.overlay_url }}"
+           alt="Inspection overlay for {{ view.inspection.product_id }} at source resolution, defect regions outlined and numbered">
+    {% else %}
+      <div class="image-frame image-frame--empty" id="live-overlay-empty">
+        <p>{% if view.inspection.status in ("acquisition_failure", "processing_failure") %}No overlay &mdash; the image was not processed.{% else %}No overlay stored.{% endif %}</p>
+      </div>
+    {% endif %}
+    <p class="caption" id="live-caption">
+      Product {{ view.inspection.product_id or "&mdash;" }} &middot;
+      {{ view.inspection.captured_at|short_time }} &middot;
+      {{ view.inspection.material_code or "unknown material" }} &middot;
+      {{ view.inspection.station_code }}
+      <span class="caption__note">Overlay drawn at source resolution, not 256&times;256.</span>
+    </p>
+  </section>
+
+  <section class="live__summary" aria-label="Result">
+    {% with summary = view.summary %}{% include "partials/result_banner.html" %}{% endwith %}
+
+    {% with regions = view.regions, inspection_id = view.inspection.inspection_id %}
+      {% include "partials/region_table.html" %}
+    {% endwith %}
+
+    <p class="note note--provisional">
+      {{ provisional_note|safe }}
+      <a href="/materials">Materials</a>
+    </p>
+
+    <div class="button-row">
+      <a class="button button--primary" href="/regions?inspection_id={{ view.inspection.inspection_id }}&amp;region={{ view.regions[0].region_index if view.regions else 1 }}">Open region detail</a>
+      <a class="button" href="/history">View history</a>
+    </div>
+  </section>
+</div>
+{% else %}
+<div class="panel empty-state">
+  <h2>No inspection recorded yet</h2>
+  <p>The station has not produced a result. Seed the demo data with <code>python -m scripts.seed_db</code>, or advance the mock station with the demo control above.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/live.js" defer></script>
+{% endblock %}

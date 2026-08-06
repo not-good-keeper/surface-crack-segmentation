@@ -1,0 +1,13 @@
+<nav class="nav" aria-label="Screens">
+  <ul class="nav__list">
+    {% for item in nav_items %}
+    <li class="nav__item">
+      <a class="nav__link{% if item.key == active %} nav__link--current{% endif %}"
+         href="{{ item.href }}"
+         {% if item.key == active %}aria-current="page"{% endif %}>
+        <span class="nav__label">{{ item.label }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</nav>
