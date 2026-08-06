@@ -68,6 +68,21 @@ def test_dockerfile_serves_the_real_inference_pipeline():
     assert "requirements.txt" in text
 
 
+def test_dockerfile_copies_every_module_the_app_imports_from_outside_itself():
+    """app/inference.py loads bench/preprocess.py for the trained input transform.
+
+    Regression guard: the first Render build failed at register_model with
+    "No module named 'preprocess'" because the image copied app/ but not that one
+    file. The app reaching outside its own package is deliberate (architecture §5.1 -
+    one transform, not two copies that drift), so the image has to carry it.
+    """
+    text = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "bench/preprocess.py" in text
+
+    ignore = (ROOT / ".dockerignore").read_text(encoding="utf-8")
+    assert "!bench/preprocess.py" in ignore, "excluded from the build context again"
+
+
 def test_dockerfile_installs_onnxruntimes_system_library():
     """libgomp1 is not in python:*-slim and onnxruntime cannot import without it.
 
