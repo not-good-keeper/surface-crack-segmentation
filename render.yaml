@@ -2,22 +2,41 @@
 #
 # Connect this repository in the Render dashboard ("New +" -> "Blueprint") and Render
 # reads this file automatically - no manual service configuration. Builds straight from
-# the Dockerfile in this repository, which is mock-mode only by construction (see
-# docs/DEPLOYMENT.md §0): the real inspection pipeline never runs on a public host.
+# the Dockerfile, which runs the FULL application: real ONNX inference on uploaded
+# images and browser-camera frames, not a mock of it (docs/DEPLOYMENT.md §0).
+#
+# Render serves every service over HTTPS, which matters here beyond the usual reasons:
+# browsers only expose getUserMedia in a secure context, so the Capture and Live camera
+# screens work on the deployed URL exactly as they do on localhost. Plain HTTP on a
+# custom domain would silently break the camera.
 services:
   - type: web
-    name: vision404-demo
+    name: vision404-inspection
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
     healthCheckPath: /healthz
     envVars:
+      # The Dockerfile already sets these; naming them here keeps the deployed
+      # configuration visible in the Render dashboard rather than buried in a layer.
       - key: INSPECTION_PROVIDER
-        value: mock
+        value: real
       - key: DEMO_MODE
         value: "true"
+      # Left empty on purpose: scripts/register_model runs at build time and writes the
+      # graph's own hash into the active model_version row, which then becomes the
+      # reference status_service.model_check verifies against. Pinning a literal here
+      # would mean editing this file on every re-export.
+      - key: MODEL_SHA256
+        value: ""
+      # Measured locally: 71 MB with the ONNX session loaded, 127 MB peak on a
+      # 2048x2048 image, against the free plan's 512 MB. One thread keeps that
+      # predictable on a shared instance and matches how latency was benchmarked
+      # (single CPU thread - see README "Current local model").
+      - key: OMP_NUM_THREADS
+        value: "1"
     # Render's free plan spins the instance down after 15 minutes idle and back up on
-    # the next request; the first request after that takes a few seconds. Data written
-    # during a session (batch runs, the "Next inspection" demo control) does not
-    # survive a redeploy - the image reseeds at build time, same as any container
-    # start. See docs/DEPLOYMENT.md §0 for what that does and does not mean for a demo.
+    # the next request; that first request pays for loading the ONNX session, so expect
+    # a few seconds. Inspections written while the instance is up do not survive a
+    # redeploy - the image reseeds its demonstration history at build time. See
+    # docs/DEPLOYMENT.md §0 for what that does and does not mean for a demo.

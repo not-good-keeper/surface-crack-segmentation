@@ -1,40 +1,79 @@
 # Deployment
 
-Two supported paths, and they are not interchangeable.
+Two supported paths. Both run the real ONNX pipeline; what differs is where they run
+and what that costs.
 
-| | Station (real) | Container (demo) |
+| | Station | Container (hosted demo) |
 |---|---|---|
 | Section | §2 below | §0 below |
-| Provider | `real` only | `mock` only |
-| Network | None, by design (NFR-05) | Public internet |
-| Filesystem | Local disk, persists | Container filesystem, persists until redeploy |
-| Purpose | Inspecting parts | Showing reviewers the screens, including Analytics |
+| Provider | `real` | `real` |
+| Inference | Local ONNX, CPU | Local ONNX, CPU — same `Inspector` |
+| Network | None, by design (NFR-05) | Public internet: images travel to reach it |
+| Filesystem | Local disk, persists | Container filesystem, reset on redeploy |
+| Purpose | Inspecting parts | Showing the working system end to end |
 
-The station is the real system: one persistent local FastAPI process with a local
-ONNX model, SQLite database and local media directories. Use
+The station is the real system: one persistent local FastAPI process with a local ONNX
+model, SQLite database and local media directories. Use
 `uvicorn app.main:app --host 127.0.0.1 --port 8000`; see `LOCAL_SETUP.md` and the
-README. It has no remote inference endpoint, ever.
+README.
 
-The container path (§0) is new: a Dockerfile that runs the same application in mock
-mode for a public demo, on a normal host with a normal (if ephemeral-across-redeploys)
-filesystem — not the read-only/`/tmp` split the retired Vercel path needed. §1 below,
-the Vercel material, is retained only as an architectural record of why that split
-existed and why serverless was abandoned for it; it is not a supported deployment
-procedure and `tests/test_deployment.py` asserts no `vercel.json` or `api/index.py`
-has come back.
+The container path (§0) runs the *same* application with the *same* model — uploads and
+browser-camera frames go through `app/inference.py::Inspector` exactly as they do on the
+station. The honest difference is not the code, it is the deployment: NFR-05's offline
+guarantee is a property of running on the line with no network, and a public host is by
+definition not that. The inference path still opens no outbound socket. **Do not point a
+production line at a public deployment.**
+
+§1 below, the Vercel material, is retained only as an architectural record of why the
+old read-only/`/tmp` split existed and why serverless was abandoned; it is not a
+supported procedure, and `tests/test_deployment.py` asserts no `vercel.json` or
+`api/index.py` has come back.
 
 ---
 
-## 0. Container hosting (demo)
+## 0. Container hosting (hosted demo)
 
-`Dockerfile` builds a mock-mode image: `INSPECTION_PROVIDER=mock`, `DEMO_MODE=true`,
-demonstration data generated procedurally by `app/providers/mock_assets.py` and seeded
-**at image build time** (`RUN python -m scripts.seed_db`), so the container answers its
-first request immediately instead of spending the ~2 minutes a fresh seed takes. The
-image installs only what mock mode imports — `fastapi`, `uvicorn`, `jinja2`, `pydantic`,
-`pydantic-settings`, `python-multipart`, `numpy`, `pillow` — not `onnxruntime`,
-`opencv-python-headless` or `scikit-image`, which a public host must never run anyway
-(see the table above and NFR-05).
+`Dockerfile` builds a full real-mode image: `INSPECTION_PROVIDER=real`, the exported
+graph at `data/export/model.onnx`, and the whole inference stack from
+`requirements.txt` (`onnxruntime`, `opencv-python-headless`, `scikit-image`).
+
+Two build-time steps, in order:
+
+1. **Seed** (`scripts.seed_db --live 60`) generates the demonstration history the
+   History and Analytics screens read. It runs the **mock** provider deliberately —
+   those rows are procedurally generated sample data, not measurements — and it happens
+   at build time because seeding takes minutes and a container should answer its first
+   request immediately.
+2. **Register** (`scripts.register_model`) makes the real ONNX the active
+   `model_version`, computing the hash from the file itself. That is why
+   `MODEL_SHA256` is left empty: the database row becomes the reference that
+   `status_service.model_check` verifies the file against, so a swapped model still
+   stops inspection (T-23) without pinning a literal in two places.
+
+So the pre-loaded history is generated sample data, while **every new inspection —
+upload, camera capture, live inspection, batch — is real model output.**
+
+Two system libraries are installed because `python:*-slim` lacks them: `libgomp1`
+(onnxruntime's OpenMP runtime; without it the import fails with a bare
+`libgomp.so.1: cannot open shared object file`) and `libglib2.0-0` (opencv's remaining
+shared dependency even in the headless build).
+
+### The model is committed on this branch
+
+Render builds from git, so the graph has to be in the repository — there is no build
+step that could fetch it. It is committed **on the `hostable` branch only**; `main`
+does not carry it, because a station installs its own model file and records the hash
+(README, "Replacing the model").
+
+The file is self-contained: `torch.onnx.export` split the weights into a sidecar
+`.onnx.data`, which was merged back in. That matters for more than tidiness —
+`model_check` hashes the `.onnx` alone, so weights in a separate file would sit
+entirely outside the integrity check while Status still reported `verified`.
+
+**Licence caveat.** The training corpus mixes CC0, CC-BY, CC-BY-NC and research-only
+terms (`docs/ATTRIBUTION.md`). Publishing these weights is redistribution. Committing
+them here was a deliberate decision for a portfolio demo — not a finding that the terms
+permit it. Re-check before any commercial use or wider distribution.
 
 ```bash
 docker build -t vision404-demo .
@@ -56,42 +95,57 @@ needed.
 1. Push this branch to a GitHub/GitLab repository Render can see (a fork is fine).
 2. In the Render dashboard: **New +** -> **Blueprint**, pick the repository and branch.
 3. Render finds `render.yaml`, builds `Dockerfile` on the free web-service plan, and
-   sets `INSPECTION_PROVIDER=mock` / `DEMO_MODE=true`. `$PORT` and the `/healthz`
+   sets `INSPECTION_PROVIDER=real` / `DEMO_MODE=true`. `$PORT` and the `/healthz`
    health check are wired up already — nothing else to configure.
-4. First build takes a few minutes (the image seeds its demo data during the build,
-   per above). After that, every deploy repeats the same build-time seed.
+4. First build takes several minutes (installing the inference stack, then seeding the
+   demonstration history). After that, every deploy repeats the same two build steps.
+
+**The camera needs HTTPS, and Render provides it.** Browsers only expose
+`getUserMedia` in a secure context, so Capture and Live work on a `*.onrender.com` URL
+exactly as they do on `localhost`. Serving this over plain HTTP on a custom domain
+would silently break the camera while everything else kept working.
 
 Render's free plan spins the instance down after 15 minutes idle; the next request
-wakes it back up, a few seconds slower than usual. That is a demo-tier limitation, not
-a bug in this application — see "What does not, and why" below.
+wakes it back up and pays for loading the ONNX session, so expect a few seconds.
+
+**Memory.** The free plan caps at 512 MB. Measured locally: 71 MB with the ONNX session
+loaded, 98 MB after a 1024×1024 inference, 127 MB after 2048×2048 — comfortable, but
+`OMP_NUM_THREADS=1` is set to keep it predictable on a shared instance (and it matches
+how latency was benchmarked: one CPU thread).
 
 Railway and Fly.io also build straight from `Dockerfile` with no extra configuration
 (connect the repository and pick "Docker" as the environment on Railway; `fly launch
---dockerfile Dockerfile` on Fly.io) if a different host is preferred later — `render.yaml`
-is Render-specific and simply unused on either of them.
+--dockerfile Dockerfile` on Fly.io) — `render.yaml` is Render-specific and simply
+unused on either of them.
 
 ### What works
 
-Every screen, including **Analytics** (`/analytics`, `/analytics/{batch_run_id}`) —
-the per-session dashboards are pure server-rendered SVG computed from the seeded rows,
-so they need nothing beyond what mock mode already provides. Region navigation,
-history filtering and pagination, CSV/JSON exports, materials and thresholds, status
-checks and fault simulation, the demo "Next inspection" control, and batch runs over
-the bundled folders.
+Everything, with real model output:
+
+- **Upload** a PNG/JPEG on Capture → real ONNX inference, real geometry, real overlay.
+- **Camera capture** and **live inspection** → same pipeline, same `POST /api/inspections`.
+- **Batch runs** over the bundled folders.
+- **Analytics** (`/analytics`, `/analytics/{batch_run_id}`), History, Regions,
+  Materials, Status, CSV/JSON exports.
+
+Verified locally against the built image's configuration: `/api/status` reports
+`STATION OK` with the model check `verified`, and an uploaded 512×512 probe returned
+`regions_found` with a 893 px crack region measured at source resolution.
 
 ### What does not, and why
 
-- **`INSPECTION_PROVIDER=real` is refused in spirit, not just in practice.** The image
-  never installs `onnxruntime`/`opencv-python-headless`/`scikit-image`, so real mode
-  would fail to import even if the environment variable were set. This is deliberate:
-  factory images must not leave the site (NFR-05), and a public container is not the
-  site.
-- **Writes do not persist across a redeploy.** A new image build starts from the
-  build-time seed again; whatever an operator clicked in the meantime is gone. Fine for
-  a demo, disqualifying for a station — same caveat the retired Vercel path had, for a
-  different reason (that one couldn't persist writes at all, even between requests).
-- **No authentication.** Same as the local server: don't put anything behind this that
-  needs access control without adding it first.
+- **The demo "Next inspection" control is absent.** It only advances the *mock*
+  station; `live.html` and `status.html` gate it on `demo_mode and provider == "mock"`,
+  so with the real provider it is not rendered at all rather than rendered broken.
+  Upload or the camera is how you produce a new inspection here.
+- **Writes do not persist across a redeploy.** A new build starts from the build-time
+  seed again; inspections recorded in between are gone. Fine for a demo, disqualifying
+  for a station.
+- **No authentication.** Same as the local server: anyone with the URL can upload an
+  image and read the history. Don't put anything sensitive behind it.
+- **It is still not the station.** Images reach this container over the public
+  internet. That is the one guarantee a hosted deployment cannot make (NFR-05), and no
+  amount of configuration changes it.
 
 ---
 
