@@ -16,15 +16,22 @@ import models as M  # noqa: E402
 
 
 def find(tag):
-    """-> the run dict for `tag`."""
+    """-> the run dict for `tag`.
+
+    A match needs `args` as well as the tag. Evaluation reports live in the same
+    directory and carry the tag of the run they describe, so matching on tag alone
+    picked up FULLEVAL_<tag>.json -- which sorts first and has no `args` -- and every
+    caller died on a KeyError far from the cause.
+    """
     for p in sorted(BENCH.glob("*.json")):
         try:
             run = json.loads(p.read_text())
         except ValueError:
             continue
-        if run.get("tag") == tag:
+        if isinstance(run, dict) and run.get("tag") == tag and "args" in run:
             return run
-    raise SystemExit(f"no run tagged {tag!r} in {BENCH}")
+    raise SystemExit(f"no run tagged {tag!r} in {BENCH} (a run record needs both "
+                     f"'tag' and 'args'; evaluation reports have only 'tag')")
 
 
 def load_weights(path, model_name, classes, device=None, **ds_kw):
