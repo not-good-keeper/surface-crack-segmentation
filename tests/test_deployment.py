@@ -56,19 +56,35 @@ def test_relative_traversal_in_a_stored_path_is_refused(settings):
     assert image_path_for({"source_image_path": "../../../etc/passwd"}, "source", settings) is None
 
 
-def test_dockerfile_runs_mock_mode_only():
-    """The container path (docs/DEPLOYMENT.md §0) must never run real inference.
+def test_dockerfile_serves_the_real_inference_pipeline():
+    """The container path (docs/DEPLOYMENT.md §0) runs the full system, not a mock.
 
-    A public host and a factory image are incompatible by design (NFR-05); the image
-    should not even have the inference stack installed for `real` mode to fall back to.
+    Uploads and browser-camera frames go through app/inference.py::Inspector, so the
+    image has to carry both the graph and the runtime that loads it.
     """
     text = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-    assert "INSPECTION_PROVIDER=mock" in text
-    install_lines = "\n".join(
-        line for line in text.splitlines() if not line.strip().startswith("#")
-    ).lower()
-    for package in ("onnxruntime", "opencv", "scikit-image"):
-        assert package not in install_lines
+    assert "INSPECTION_PROVIDER=real" in text
+    assert "data/export/model.onnx" in text
+    assert "requirements.txt" in text
+
+
+def test_dockerfile_installs_onnxruntimes_system_library():
+    """libgomp1 is not in python:*-slim and onnxruntime cannot import without it.
+
+    The failure without this line is a runtime ImportError on the first inspection,
+    long after the build reports success - worth pinning down in a test.
+    """
+    text = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "libgomp1" in text
+
+
+def test_dockerfile_registers_the_model_so_the_hash_check_passes():
+    """Seed writes a placeholder model row; register_model replaces it with the real
+    hash, which is what lets MODEL_SHA256 stay empty without Status reporting a
+    mismatch and stopping inspection (T-23)."""
+    text = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "scripts.register_model" in text
+    assert text.index("scripts.seed_db") < text.index("scripts.register_model")
 
 
 def test_dockerfile_respects_the_hosting_platform_port_and_binds_publicly():
@@ -79,24 +95,41 @@ def test_dockerfile_respects_the_hosting_platform_port_and_binds_publicly():
     assert "HEALTHCHECK" in text
 
 
-def test_dockerignore_excludes_the_training_corpus():
+def test_dockerignore_excludes_the_training_corpus_but_admits_the_model():
+    """data/ is tens of GB locally; the model and metrics are the two exceptions."""
     text = (ROOT / ".dockerignore").read_text(encoding="utf-8")
     for entry in ("data/", ".venv-app/", ".git/", "bench/", "dataset/"):
         assert entry in text
+    assert "!data/export/model.onnx" in text
+    assert "!data/metrics/coverage.json" in text
 
 
-def test_render_blueprint_builds_the_dockerfile_in_mock_mode():
+def test_the_model_is_committed_on_this_branch():
+    """Render builds from git, so the graph has to be in the repository.
+
+    Self-contained too - weights merged in rather than a sidecar .onnx.data, or the
+    SHA-256 the Status screen verifies would cover the graph but not the weights.
+    """
+    model = ROOT / "data" / "export" / "model.onnx"
+    assert model.exists(), "data/export/model.onnx is missing - the deployment cannot infer"
+    assert model.stat().st_size > 1_000_000, "model.onnx looks truncated"
+    assert not list((ROOT / "data" / "export").glob("*.onnx.data")), (
+        "external-data sidecar present; the hash check would not cover the weights"
+    )
+
+
+def test_render_blueprint_builds_the_dockerfile_in_real_mode():
     """render.yaml is what makes `New + -> Blueprint` on Render need zero manual setup.
 
     Kept as a plain text check, not a YAML parse: no test dependency here should force
-    PyYAML into requirements-dev.txt just to read six lines of config.
+    PyYAML into requirements-dev.txt just to read a few lines of config.
     """
     text = (ROOT / "render.yaml").read_text(encoding="utf-8")
     assert "runtime: docker" in text
     assert "dockerfilePath: ./Dockerfile" in text
     assert "plan: free" in text
     assert "healthCheckPath: /healthz" in text
-    assert "value: mock" in text
+    assert "value: real" in text
 
 
 def test_relative_paths_resolve_against_local_data_root(seeded, settings):

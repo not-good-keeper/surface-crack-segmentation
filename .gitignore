@@ -69,14 +69,12 @@ data/overlays/*
 # whatever was photographed here; it is not part of the demo and must not ship.
 data/sources/real/
 data/overlays/real/
-data/exports/
 
 # Benchmark RESULTS are evidence and belong in git; benchmark WEIGHTS do not.
 # 23 checkpoints is 139 MB, and the .json next to each one already records the
 # metrics, the args and the split hash that produced it.
 !data/bench/
 data/bench/*.pt
-data/bench/*.onnx
 
 # Superseded manifests: kept on disk for comparison, not in the first commit.
 data/manifest_split_v1.csv
@@ -104,3 +102,23 @@ Thumbs.db
 *.xlsx
 HANDOFF.md
 additonal_help_datatset.txt
+
+# ---------------------------------------------------------------------------
+# The active model, committed on THIS BRANCH ONLY (hostable).
+#
+# Render builds from git, so the graph the container serves has to be in the
+# repository - there is no build step that could fetch it. 5.9 MB, self-contained
+# (weights merged in, not a sidecar .onnx.data), so the SHA-256 the Status screen
+# verifies covers the weights too.
+#
+# `main` deliberately does not carry this: a station installs its own model file and
+# records the hash, per README "Replacing the model".
+#
+# Licence caveat, unchanged by convenience: the training corpus mixes CC0, CC-BY,
+# CC-BY-NC and research-only terms (docs/ATTRIBUTION.md). Publishing these weights is
+# redistribution - a deliberate call for a portfolio demo, not a finding that the
+# terms permit it.
+# ---------------------------------------------------------------------------
+!data/export/
+data/export/*
+!data/export/model.onnx

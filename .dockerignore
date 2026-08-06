@@ -1,11 +1,13 @@
-# The Docker build context should be the code, not the training corpus. data/ alone
-# can hold tens of GB of checkpoints and source imagery locally (see the note in
-# .gitignore); the image builds its own demo data at build time via scripts/seed_db.py
-# and needs nothing from the host's data/ folder except the small metrics file, copied
-# explicitly in the Dockerfile.
+# The Docker build context should be the code and the model, not the training corpus.
+# data/ alone can hold tens of GB of checkpoints and source imagery locally (see the
+# note in .gitignore); the image generates its own demo history at build time via
+# scripts/seed_db.py. Two things it cannot generate and must receive: the metrics file
+# and the exported ONNX graph.
 data/
 !data/metrics/
 !data/metrics/coverage.json
+!data/export/
+!data/export/model.onnx
 
 .venv/
 .venv-app/
@@ -37,3 +39,8 @@ tests/
 Dockerfile
 .dockerignore
 docker-compose.yml
+
+# The PyTorch checkpoint is the export INPUT, not a runtime artefact. The container
+# serves data/export/model.onnx; shipping the 5.9 MB .pt as well would grow the build
+# context for a file nothing in the image opens.
+*.pt
