@@ -1,0 +1,117 @@
+# Licence registry, keyed by the `source` column of data/manifest_split.csv.
+#
+# dataset/sources.yaml registers only the seven sources fetched by dataset/fetch.py.
+# The rest arrive through fetch_steeldefectx.py, kaggle_fetch.py, fetch_roboflow.py and
+# fetch_mvtec_cracks.py, and carried no recorded licence at all -- so a packaging script
+# reading sources.yaml alone resolved fourteen of eighteen sources to "unknown" and would
+# have withheld 4,755 rows of CC-BY-4.0 SteelDefectX while treating CC-BY-NC-SA casting
+# imagery as merely unverified.
+#
+# `redistribute: true` means we may ship the pixels inside a derived corpus.
+# NC and share-alike licences are false on purpose: not because redistribution is
+# forbidden outright, but because mixing them into one archive would impose their terms
+# on the whole thing.
+#
+# `unknown` is not a placeholder to be optimistic about. An unverified licence is a
+# licence we do not have, so it is excluded until someone checks and edits this file.
+# Sources marked unknown here are still fully described in the manifest and rebuildable
+# from their original hosts.
+
+sdx:
+  licence: CC-BY-4.0
+  redistribute: true
+  credit: "Zhaosxian - HuggingFace Zhaosxian/SteelDefectX"
+
+crackseg9k:
+  licence: CC0-1.0
+  redistribute: true
+  credit: "Kulkarni et al. - doi:10.7910/DVN/EGIEBY"
+
+wood:
+  licence: CC-BY-4.0
+  redistribute: true
+  credit: "Kodytek, Bodzas, Bilik - doi:10.5281/zenodo.4694695"
+
+rf_pipe_crack:
+  licence: CC-BY-4.0
+  redistribute: true
+  credit: "Roboflow Universe"
+
+rf_steel_reuse_cracks:
+  licence: CC-BY-4.0
+  redistribute: true
+  credit: "Roboflow Universe"
+
+rf_endoscope_cracks:
+  licence: CC-BY-4.0
+  redistribute: true
+  credit: "Roboflow Universe"
+
+rf_cracked_phone:
+  licence: CC-BY-4.0
+  redistribute: true
+  credit: "Roboflow Universe"
+
+# ---- restricted: licence known, redistribution would bind the whole archive ----
+
+kolektor:
+  licence: CC-BY-NC-SA-4.0
+  redistribute: false
+  credit: "Bozic, Tabernik, Skocaj - ViCoS"
+  reason: "non-commercial AND share-alike; bundling forces the derived corpus to NC-SA"
+
+kolektor1:
+  licence: CC-BY-NC-SA-4.0
+  redistribute: false
+  credit: "Bozic, Tabernik, Skocaj - ViCoS"
+  reason: "non-commercial AND share-alike"
+
+casting:
+  licence: CC-BY-NC-SA-4.0
+  redistribute: false
+  credit: "Ravirajsinh Dabhi; imagery from Pilot Technocast, Rajkot, Gujarat"
+  reason: "non-commercial AND share-alike"
+
+mvtec:
+  licence: CC-BY-NC-SA-4.0
+  redistribute: false
+  credit: "Bergmann et al., MVTec Software GmbH"
+  reason: "non-commercial AND share-alike"
+
+dtd:
+  licence: research-only
+  redistribute: false
+  credit: "Cimpoi et al., Describable Textures Dataset"
+  reason: "research-only terms do not permit redistribution"
+
+# ---- licence never verified: excluded until it is ----
+
+magnetic_tile:
+  licence: unknown
+  redistribute: false
+  reason: "sources.yaml records 'unknown-check-at-fetch'; never checked"
+
+severstal:
+  licence: unknown
+  redistribute: false
+  reason: "Kaggle competition data; competition rules govern reuse and were not reviewed"
+
+sdnet:
+  licence: unknown
+  redistribute: false
+  reason: "not recorded at fetch"
+
+ozgenel:
+  licence: unknown
+  redistribute: false
+  reason: "not recorded at fetch"
+
+gc10:
+  licence: unknown
+  redistribute: false
+  reason: "not recorded at fetch"
+
+neu_det:
+  licence: unknown
+  redistribute: false
+  reason: "not recorded at fetch"
