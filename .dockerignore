@@ -26,7 +26,11 @@ htmlcov/
 *.env
 !.env.example
 
-bench/
+# bench/ is the training and export stack and does not belong in a runtime image -
+# except preprocess.py, which app/inference.py loads to apply the input transform
+# the weights were trained with (see the COPY in the Dockerfile).
+bench/*
+!bench/preprocess.py
 dataset/
 defectforge/
 experiments/
