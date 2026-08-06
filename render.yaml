@@ -1,0 +1,23 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+#
+# Connect this repository in the Render dashboard ("New +" -> "Blueprint") and Render
+# reads this file automatically - no manual service configuration. Builds straight from
+# the Dockerfile in this repository, which is mock-mode only by construction (see
+# docs/DEPLOYMENT.md §0): the real inspection pipeline never runs on a public host.
+services:
+  - type: web
+    name: vision404-demo
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: INSPECTION_PROVIDER
+        value: mock
+      - key: DEMO_MODE
+        value: "true"
+    # Render's free plan spins the instance down after 15 minutes idle and back up on
+    # the next request; the first request after that takes a few seconds. Data written
+    # during a session (batch runs, the "Next inspection" demo control) does not
+    # survive a redeploy - the image reseeds at build time, same as any container
+    # start. See docs/DEPLOYMENT.md §0 for what that does and does not mean for a demo.

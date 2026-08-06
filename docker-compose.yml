@@ -1,0 +1,11 @@
+# Local convenience for building and running the hosted demo image (see Dockerfile
+# and docs/DEPLOYMENT.md). Not required by any hosting platform - Render, Railway and
+# Fly.io all build straight from the Dockerfile - this is only for `docker compose up`
+# on a machine you control.
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: "8000"
