@@ -1,25 +1,113 @@
 # Deployment
 
-Two very different things go under this heading, and it is worth being blunt about the
-difference before any of the commands below.
+Two supported paths, and they are not interchangeable.
 
-| | Station deployment | Vercel deployment |
+| | Station (real) | Container (demo) |
 |---|---|---|
-| What it is | The real system | A shareable demo of the interface |
-| Runs | CPU-only industrial PC on the line | Serverless functions |
-| Provider | `real` — the ONNX pipeline | `mock` only |
+| Section | §2 below | §0 below |
+| Provider | `real` only | `mock` only |
 | Network | None, by design (NFR-05) | Public internet |
-| Database | Persists | Resets on every cold start |
-| Purpose | Inspecting parts | Showing reviewers the screens |
+| Filesystem | Local disk, persists | Container filesystem, persists until redeploy |
+| Purpose | Inspecting parts | Showing reviewers the screens, including Analytics |
 
-**Vercel cannot run the real system**, and this is not a limitation to work around — it
-is the point. The inference path deliberately opens no socket because factory images
-must not leave the site; that requirement and a public serverless host are incompatible
-by design. Use Vercel to show the interface. Ship the station on the industrial PC.
+The station is the real system: one persistent local FastAPI process with a local
+ONNX model, SQLite database and local media directories. Use
+`uvicorn app.main:app --host 127.0.0.1 --port 8000`; see `LOCAL_SETUP.md` and the
+README. It has no remote inference endpoint, ever.
+
+The container path (§0) is new: a Dockerfile that runs the same application in mock
+mode for a public demo, on a normal host with a normal (if ephemeral-across-redeploys)
+filesystem — not the read-only/`/tmp` split the retired Vercel path needed. §1 below,
+the Vercel material, is retained only as an architectural record of why that split
+existed and why serverless was abandoned for it; it is not a supported deployment
+procedure and `tests/test_deployment.py` asserts no `vercel.json` or `api/index.py`
+has come back.
 
 ---
 
-## 1. Vercel (demo)
+## 0. Container hosting (demo)
+
+`Dockerfile` builds a mock-mode image: `INSPECTION_PROVIDER=mock`, `DEMO_MODE=true`,
+demonstration data generated procedurally by `app/providers/mock_assets.py` and seeded
+**at image build time** (`RUN python -m scripts.seed_db`), so the container answers its
+first request immediately instead of spending the ~2 minutes a fresh seed takes. The
+image installs only what mock mode imports — `fastapi`, `uvicorn`, `jinja2`, `pydantic`,
+`pydantic-settings`, `python-multipart`, `numpy`, `pillow` — not `onnxruntime`,
+`opencv-python-headless` or `scikit-image`, which a public host must never run anyway
+(see the table above and NFR-05).
+
+```bash
+docker build -t vision404-demo .
+docker run -p 8000:8000 vision404-demo
+# or: docker compose up --build
+```
+
+The container reads `$PORT` if the host sets it (Render, Railway, Fly.io and Cloud Run
+all do this); it falls back to 8000. `/healthz` is wired up as the image's
+`HEALTHCHECK`.
+
+### Deploy to Render (free tier)
+
+`render.yaml` at the repository root is a
+[Render Blueprint](https://render.com/docs/blueprint-spec): Render reads it
+automatically once the repository is connected, so no manual service configuration is
+needed.
+
+1. Push this branch to a GitHub/GitLab repository Render can see (a fork is fine).
+2. In the Render dashboard: **New +** -> **Blueprint**, pick the repository and branch.
+3. Render finds `render.yaml`, builds `Dockerfile` on the free web-service plan, and
+   sets `INSPECTION_PROVIDER=mock` / `DEMO_MODE=true`. `$PORT` and the `/healthz`
+   health check are wired up already — nothing else to configure.
+4. First build takes a few minutes (the image seeds its demo data during the build,
+   per above). After that, every deploy repeats the same build-time seed.
+
+Render's free plan spins the instance down after 15 minutes idle; the next request
+wakes it back up, a few seconds slower than usual. That is a demo-tier limitation, not
+a bug in this application — see "What does not, and why" below.
+
+Railway and Fly.io also build straight from `Dockerfile` with no extra configuration
+(connect the repository and pick "Docker" as the environment on Railway; `fly launch
+--dockerfile Dockerfile` on Fly.io) if a different host is preferred later — `render.yaml`
+is Render-specific and simply unused on either of them.
+
+### What works
+
+Every screen, including **Analytics** (`/analytics`, `/analytics/{batch_run_id}`) —
+the per-session dashboards are pure server-rendered SVG computed from the seeded rows,
+so they need nothing beyond what mock mode already provides. Region navigation,
+history filtering and pagination, CSV/JSON exports, materials and thresholds, status
+checks and fault simulation, the demo "Next inspection" control, and batch runs over
+the bundled folders.
+
+### What does not, and why
+
+- **`INSPECTION_PROVIDER=real` is refused in spirit, not just in practice.** The image
+  never installs `onnxruntime`/`opencv-python-headless`/`scikit-image`, so real mode
+  would fail to import even if the environment variable were set. This is deliberate:
+  factory images must not leave the site (NFR-05), and a public container is not the
+  site.
+- **Writes do not persist across a redeploy.** A new image build starts from the
+  build-time seed again; whatever an operator clicked in the meantime is gone. Fine for
+  a demo, disqualifying for a station — same caveat the retired Vercel path had, for a
+  different reason (that one couldn't persist writes at all, even between requests).
+- **No authentication.** Same as the local server: don't put anything behind this that
+  needs access control without adding it first.
+
+---
+
+## 1. Vercel (retired, historical record only)
+
+**Vercel cannot run the real system**, and that was never a limitation to work around —
+it was the point. The inference path deliberately opens no socket because factory
+images must not leave the site; that requirement and a public serverless host are
+incompatible by design. Vercel was used to show the interface only; the station always
+shipped separately, on the industrial PC (§2).
+
+The project no longer deploys to Vercel — §0 (Docker, above) replaced it, on a host
+with a normal filesystem instead of the read-only/`/tmp` split serverless forced. What
+follows is kept only because it explains *why* that split existed; none of it is
+runnable today (`tests/test_deployment.py` asserts `vercel.json` and `api/index.py`
+stay gone).
 
 ### Why the application needed changes at all
 
@@ -35,68 +123,15 @@ images, and takes about three minutes to seed. Three changes make it work:
 | Background threads are frozen once a response is sent | Batch runs go synchronous when `is_serverless` — `settings.run_batches_synchronously`. |
 
 None of this touches the screens, the schema, the provider boundary or the tests.
+`scripts/build_demo_bundle.py` (the bundle builder referenced above) still exists in
+the repository as of this writing but has no current caller — §0 seeds the container
+at build time instead and needs no committed bundle.
 
-### Deploy
-
-```bash
-# 1. Build the demo bundle (locally — this is the slow part, ~2 minutes)
-python -m scripts.build_demo_bundle
-
-# 2. Check the reported size. It should print ~24 MB and confirm it is under the
-#    50 MB lambda limit set in vercel.json.
-
-# 3. Commit the bundle. data/inspection.db and the generated images are deliberately
-#    NOT gitignored for deployment — see the note in .gitignore.
-git add -f data/inspection.db data/sources data/overlays data/batches
-git commit -m "Build demo bundle"
-
-# 4. Deploy
-npm i -g vercel
-vercel            # preview
-vercel --prod     # production
-```
-
-`vercel.json` routes every request to `api/index.py`, which exposes the same FastAPI
-application, and sets `INSPECTION_PROVIDER=mock`, `DEMO_MODE=true`, `SERVERLESS=true`.
-
-### What works on Vercel
-
-All six screens, region navigation, history filtering and pagination, CSV and JSON
-exports, materials and thresholds, status checks and fault simulation, the demo
-"Next inspection" control, and batch runs over the three bundled folders.
-
-### What does not, and why
-
-- **Writes do not persist.** Advancing the demo station or running a batch writes to
-  `/tmp` on one instance. A different instance, or the same one after a cold start, sees
-  the shipped database again. Fine for a demo; disqualifying for a station.
-- **Instances do not share state.** Two people clicking around may be on different
-  instances and see different results. There is no shared `/tmp`.
-- **The first request after a cold start is slow** — it copies the database and imports
-  NumPy and Pillow. Expect a second or two.
-- **Batch runs must be small.** They run inside the request, against the function
-  timeout (10 s on Hobby, 60 s on Pro). The bundled folders are 7, 5 and 4 images for
-  this reason. A 500-image run will time out.
-- **`INSPECTION_PROVIDER=real` will not work.** `onnxruntime` and `opencv-python-headless`
-  push the bundle past the size limit, and pointing a factory pipeline at a public host
-  contradicts NFR-05. The provider will refuse to start without a model file anyway.
-
-### If the bundle is too large
-
-```bash
-python -m scripts.build_demo_bundle --live 40 --cap 360
-```
-
-`--cap` sets the longest image edge. At `--live 60 --cap 480` the bundle is about 24 MB.
-The script warns above 40 MB.
-
-### Alternatives worth considering
-
-For anything beyond a demo, a container on a small VM keeps the application intact — a
-persistent disk, real background threads, full-size images, and the option of running
-the real provider on a machine you control. `python -m app.main` behind nginx is the
-whole deployment. Fly.io, Railway and Render all take a Dockerfile; none of them require
-the changes above.
+Constraints this approach ran into, which is why §0 does not: writes did not persist
+past a cold start; two visitors could land on different instances with different
+state; a cold start was slow (copying the database, importing NumPy and Pillow); batch
+runs had to stay tiny to fit the function timeout; and `INSPECTION_PROVIDER=real`
+could never work — the bundle size limit and NFR-05 both forbid it, same as §0.
 
 ---
 

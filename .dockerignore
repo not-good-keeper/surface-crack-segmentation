@@ -1,0 +1,39 @@
+# The Docker build context should be the code, not the training corpus. data/ alone
+# can hold tens of GB of checkpoints and source imagery locally (see the note in
+# .gitignore); the image builds its own demo data at build time via scripts/seed_db.py
+# and needs nothing from the host's data/ folder except the small metrics file, copied
+# explicitly in the Dockerfile.
+data/
+!data/metrics/
+!data/metrics/coverage.json
+
+.venv/
+.venv-app/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+.git/
+.github/
+
+# Defence in depth: the Dockerfile never copies this (no COPY . . anywhere), but if
+# that ever changes, a local secret must still never reach the image.
+.env
+*.env
+!.env.example
+
+bench/
+dataset/
+defectforge/
+experiments/
+docs/screenshots/
+
+tests/
+*.md
+*.pdf
+
+Dockerfile
+.dockerignore
+docker-compose.yml
