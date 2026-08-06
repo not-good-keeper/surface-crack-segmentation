@@ -12,7 +12,7 @@
     <dt>Material</dt><dd>{{ dash.run.material_name or dash.run.material_code or "&mdash;"|safe }}</dd>
     <dt>Started</dt><dd>{{ dash.run.started_at|short_time }}</dd>
     <dt>Finished</dt><dd>{{ dash.run.finished_at|short_time if dash.run.finished_at else "in progress" }}</dd>
-    <dt>Duration</dt><dd>{% if dash.duration_min %}{{ dash.duration_min }} min{% else %}&mdash;{% endif %}</dd>
+    <dt>Duration</dt><dd>{% if dash.duration_seconds is not none and dash.duration_seconds < 60 %}{{ dash.duration_seconds }} s{% elif dash.duration_min is not none %}{{ dash.duration_min }} min{% else %}&mdash;{% endif %}</dd>
     <dt>Throughput</dt><dd>{% if dash.throughput %}{{ dash.throughput }} images/min{% else %}&mdash;{% endif %}</dd>
     <dt>Status</dt><dd>{{ dash.run.status }}</dd>
   </dl>
