@@ -35,6 +35,14 @@ COPY scripts/ scripts/
 COPY data/metrics/coverage.json data/metrics/coverage.json
 COPY data/export/model.onnx data/export/model.onnx
 
+# The one file app/ needs from outside its own package. Inspector reads the input
+# transform out of the graph's metadata (here: prep=bilateral) and loads it from
+# bench/preprocess.py via `sys.path.insert(ROOT/"bench")` - see app/inference.py:109.
+# That is deliberate: the app applies the *same* transform the weights were trained
+# with rather than keeping a second copy that could drift (architecture §5.1). Without
+# this file the graph loads and then fails with "No module named 'preprocess'".
+COPY bench/preprocess.py bench/preprocess.py
+
 # Fail the build loudly and early rather than at the first request. A missing or
 # truncated model is the one input this image cannot substitute for, and the runtime
 # symptom (Status reporting CHECK STATION, inspection stopped) is far less obvious
