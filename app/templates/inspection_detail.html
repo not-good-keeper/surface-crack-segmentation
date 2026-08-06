@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block heading %}Inspection {{ "%05d"|format(view.inspection.inspection_id) }}{% endblock %}
+
+{% block header_extra %}
+<a class="button" href="/history{% if back_query %}?{{ back_query }}{% endif %}">&lsaquo; Back to history</a>
+{% endblock %}
+
+{% block content %}
+<div class="live">
+  <section class="live__image panel" aria-label="Evidence">
+    {% if view.has_overlay %}
+    <img class="image-frame" src="{{ view.overlay_url }}" alt="Overlay for {{ view.inspection.product_id }}">
+    {% elif view.has_source %}
+    <img class="image-frame" src="{{ view.source_url }}" alt="Source image for {{ view.inspection.product_id }}">
+    {% else %}
+    <div class="image-frame image-frame--empty"><p>No image stored for this inspection.</p></div>
+    {% endif %}
+    <p class="caption">
+      {{ view.inspection.product_id or "&mdash;"|safe }} &middot; {{ view.inspection.captured_at }} &middot;
+      {{ view.inspection.material_code }} &middot; {{ view.inspection.station_code }}
+      {% if view.has_source and view.has_overlay %}
+      <span class="caption__note"><a href="{{ view.source_url }}">View original without the overlay</a></span>
+      {% endif %}
+    </p>
+  </section>
+
+  <section class="live__summary" aria-label="Result">
+    {% with summary = view.summary %}{% include "partials/result_banner.html" %}{% endwith %}
+
+    {% if view.inspection.error_code %}
+    <div class="panel">
+      <h2 class="panel__title">Failure</h2>
+      <dl class="datalist">
+        <dt>Code</dt><dd class="mono">{{ view.inspection.error_code }}</dd>
+        <dt>Detail</dt><dd>{{ view.inspection.error_message }}</dd>
+      </dl>
+      <p class="note note--quiet">Recorded as {{ view.inspection.status|status_label }}. This is not a clean result.</p>
+    </div>
+    {% endif %}
+
+    {% with regions = view.regions, inspection_id = view.inspection.inspection_id %}
+      {% include "partials/region_table.html" %}
+    {% endwith %}
+
+    <div class="panel">
+      <h2 class="panel__title">Provenance</h2>
+      <dl class="datalist datalist--mono">
+        <dt>Status</dt><dd>{{ view.inspection.status }}</dd>
+        <dt>Latency</dt><dd>{% if view.inspection.latency_ms %}{{ view.inspection.latency_ms }} ms{% else %}&mdash;{% endif %}</dd>
+        <dt>Image SHA-256</dt><dd class="break">{{ view.inspection.image_sha256 or "&mdash;"|safe }}</dd>
+        <dt>Model</dt><dd>{{ view.inspection.model_file_name }} &middot; {{ view.inspection.model_version }}</dd>
+        <dt>Model SHA-256</dt><dd class="break">{{ view.inspection.artefact_sha256 }}</dd>
+        <dt>Profile</dt><dd>v{{ view.inspection.profile_version }}</dd>
+        <dt>crack_thresh</dt><dd>{{ view.inspection.crack_threshold }}</dd>
+        <dt>scratch_thresh</dt><dd>{{ view.inspection.scratch_threshold }}</dd>
+        <dt>min_area_px</dt><dd>{{ view.inspection.minimum_area_px }}</dd>
+        <dt>min_skeleton_px</dt><dd>{{ view.inspection.minimum_skeleton_px }}</dd>
+        {% if view.inspection.batch_run_id %}
+        <dt>Batch run</dt><dd><a href="/batch?batch_run_id={{ view.inspection.batch_run_id }}">{{ view.inspection.batch_run_id }}</a></dd>
+        {% endif %}
+      </dl>
+    </div>
+
+    {% if view.regions %}
+    <div class="button-row">
+      <a class="button button--primary" href="/regions?inspection_id={{ view.inspection.inspection_id }}&amp;region={{ view.regions[0].region_index }}">Open region detail</a>
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

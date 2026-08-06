@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block heading %}Capture &mdash; {{ station }}{% endblock %}
+
+{% block header_extra %}
+  <span class="tag{% if settings.inspection_provider == 'mock' %} tag--demo{% endif %}">Provider: {{ settings.inspection_provider }}</span>
+{% endblock %}
+
+{% block content %}
+
+{% if settings.inspection_provider == "mock" %}
+<p class="note note--warning" id="mock-warning">
+  <strong>Mock provider.</strong> The photograph you submit is decoded and shown for
+  real, but the regions drawn on it are <strong>generated, not measured</strong> &mdash;
+  no model is running. Nothing on this screen is evidence about the part in front of the
+  camera. Run with <code>INSPECTION_PROVIDER=real</code> and a model file to inspect for real.
+</p>
+{% endif %}
+
+{% if health.blocks_inspection %}
+  <div class="banner banner--check_station" role="alert">
+    <p class="banner__headline">CHECK STATION</p>
+    <p class="banner__detail">Failing: {{ health.failing|join(", ") }}</p>
+    <p class="banner__reason">Capture is stopped until the failing check clears. <a href="/status">Open Status</a></p>
+  </div>
+{% endif %}
+
+<div class="capture" id="capture-root"
+     data-max-bytes="{{ max_bytes }}"
+     data-provider="{{ settings.inspection_provider }}"
+     data-blocked="{{ 'true' if health.blocks_inspection else 'false' }}">
+
+  <section class="panel capture__input" aria-labelledby="capture-source">
+    <h2 class="panel__title" id="capture-source">Capture source</h2>
+
+    <div class="filter-bar">
+      <div class="field">
+        <label for="capture-material">Material</label>
+        <select id="capture-material" name="material">
+          {% for material in materials %}
+          <option value="{{ material.material_code }}"{% if material.material_code == "steel" %} selected{% endif %}>{{ material.material_name }}{% if material.is_limited %} &mdash; {{ material.support_label }}{% endif %}</option>
+          {% endfor %}
+        </select>
+        <p class="field__hint">Coverage differs by material. <a href="/materials">See measured coverage</a>.</p>
+      </div>
+      <div class="field">
+        <label for="capture-product">Product ID</label>
+        <input type="text" id="capture-product" name="product_id" placeholder="batch-77/item-12" autocomplete="off">
+        <p class="field__hint">Optional. Left blank, one is derived from the file.</p>
+      </div>
+    </div>
+
+    <h3 class="panel__subtitle" id="camera-heading">Device camera</h3>
+    <div class="capture__stage">
+      {# muted and playsinline together: without both, iOS Safari refuses to play an
+         inline preview and shows a black rectangle instead. #}
+      <video id="capture-video" class="capture__video" playsinline muted hidden
+             aria-labelledby="camera-heading"></video>
+      <canvas id="capture-canvas" hidden></canvas>
+      <p class="capture__placeholder" id="camera-placeholder">
+        The camera is off. Starting it asks this browser for permission.
+      </p>
+    </div>
+    <div class="button-row">
+      <button type="button" class="button" id="camera-start">Start camera</button>
+      <button type="button" class="button button--primary" id="camera-shoot" disabled>Capture frame</button>
+      <button type="button" class="button" id="camera-flip" disabled>Switch camera</button>
+      <button type="button" class="button" id="camera-stop" disabled>Stop camera</button>
+    </div>
+    <p class="field__hint" id="camera-note">
+      Browsers only grant camera access over HTTPS or on localhost. The preview stays in
+      this page; a frame is sent to this server only when you press Capture frame.
+    </p>
+
+    <h3 class="panel__subtitle" id="upload-heading">Photo from this device</h3>
+    <div class="capture__drop" id="capture-drop" aria-labelledby="upload-heading">
+      <label class="button" for="capture-file">Choose a photo</label>
+      {# capture="environment" makes a phone offer its rear camera directly. #}
+      <input id="capture-file" type="file" accept="image/*" capture="environment" hidden>
+      <p class="field__hint">or drag an image here &middot; up to {{ (max_bytes / 1048576)|round|int }} MB</p>
+    </div>
+
+    <p class="form-error" id="capture-error" role="alert" hidden></p>
+    <p class="field__hint" id="capture-status" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="capture__result" aria-label="Capture result" id="capture-result" hidden>
+    <div id="capture-banner"></div>
+
+    <div class="panel">
+      <h2 class="panel__title" id="capture-frame-heading">Submitted frame</h2>
+      <img class="image-frame" id="capture-image" alt="" hidden>
+      <p class="caption" id="capture-caption"></p>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel__title" id="capture-regions-heading">Regions</h2>
+      <div class="table-scroll">
+        <table class="table table--compact" aria-labelledby="capture-regions-heading">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Class</th>
+              <th scope="col">Length</th>
+              <th scope="col">Width</th>
+              <th scope="col">Area</th>
+            </tr>
+          </thead>
+          <tbody id="capture-region-rows"></tbody>
+        </table>
+      </div>
+      <p class="empty" id="capture-no-regions" hidden>No regions recorded for this capture.</p>
+    </div>
+
+    <p class="note note--provisional">
+      {{ provisional_note|safe }}
+      <a href="/materials">Materials</a>
+    </p>
+
+    <div class="button-row">
+      <a class="button button--primary" id="capture-open-region" href="/regions">Open region detail</a>
+      <a class="button" id="capture-open-history" href="/history">View history</a>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/capture.js" defer></script>
+{% endblock %}

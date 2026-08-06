@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block heading %}Region Detail{% if inspection_id %} &mdash; inspection {{ "%05d"|format(inspection_id) }}{% endif %}{% endblock %}
+
+{% block content %}
+{% if view and view.regions %}
+<div class="regions" id="region-root"
+     data-inspection-id="{{ view.inspection.inspection_id }}"
+     data-region="{{ selected_index }}">
+
+  <section class="regions__list panel" aria-label="Regions in this inspection">
+    <h2 class="panel__title">Regions ({{ view.regions|length }})</h2>
+    <ul class="region-list">
+      {% for region in view.regions %}
+      <li>
+        <a class="region-list__item{% if region.region_index == selected_index %} region-list__item--current{% endif %}"
+           href="?inspection_id={{ view.inspection.inspection_id }}&amp;region={{ region.region_index }}&amp;mode={{ mode }}&amp;zoom={{ zoom }}"
+           {% if region.region_index == selected_index %}aria-current="true"{% endif %}>
+          <span class="region-list__index">{{ region.region_index }}</span>
+          <span class="region-list__class">{{ region.class_code }}</span>
+          <span class="region-list__length">{{ region.length_px|px }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="button-row button-row--split">
+      {% if prev_index %}
+      <a class="button" id="prev-region" href="?inspection_id={{ view.inspection.inspection_id }}&amp;region={{ prev_index }}&amp;mode={{ mode }}&amp;zoom={{ zoom }}" rel="prev">&lsaquo; Prev</a>
+      {% else %}
+      <span class="button button--disabled" aria-disabled="true">&lsaquo; Prev</span>
+      {% endif %}
+      {% if next_index %}
+      <a class="button" id="next-region" href="?inspection_id={{ view.inspection.inspection_id }}&amp;region={{ next_index }}&amp;mode={{ mode }}&amp;zoom={{ zoom }}" rel="next">Next &rsaquo;</a>
+      {% else %}
+      <span class="button button--disabled" aria-disabled="true">Next &rsaquo;</span>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="regions__viewer panel" aria-label="Region crop">
+    <div class="viewer {% if mode == 'side_by_side' %}viewer--split{% endif %}">
+      {% if mode == "side_by_side" %}
+        <figure class="viewer__pane">
+          <img class="image-frame" src="/media/inspection/{{ view.inspection.inspection_id }}/region/{{ selected_index }}?mode=source&amp;zoom={{ zoom }}"
+               alt="Region {{ selected_index }} on the original image, enlarged {{ zoom }} times">
+          <figcaption>Original</figcaption>
+        </figure>
+        <figure class="viewer__pane">
+          <img class="image-frame" src="/media/inspection/{{ view.inspection.inspection_id }}/region/{{ selected_index }}?mode=overlay&amp;zoom={{ zoom }}"
+               alt="Region {{ selected_index }} with the defect mask drawn, enlarged {{ zoom }} times">
+          <figcaption>Overlay</figcaption>
+        </figure>
+      {% else %}
+        <img class="image-frame" id="region-crop"
+             src="/media/inspection/{{ view.inspection.inspection_id }}/region/{{ selected_index }}?mode={{ mode }}&amp;zoom={{ zoom }}"
+             alt="Region {{ selected_index }}, {{ selected_region.class_code }}, enlarged {{ zoom }} times">
+      {% endif %}
+    </div>
+
+    <div class="viewer__controls">
+      <fieldset class="control-group">
+        <legend>Image</legend>
+        {% for option, label in [("overlay", "Overlay"), ("source", "Original"), ("side_by_side", "Side by side")] %}
+        <a class="chip{% if mode == option %} chip--current{% endif %}"
+           href="?inspection_id={{ view.inspection.inspection_id }}&amp;region={{ selected_index }}&amp;mode={{ option }}&amp;zoom={{ zoom }}"
+           {% if mode == option %}aria-current="true"{% endif %}>{{ label }}</a>
+        {% endfor %}
+      </fieldset>
+      <fieldset class="control-group">
+        <legend>Zoom</legend>
+        {% for level in [1, 2, 3, 4, 6] %}
+        <a class="chip{% if zoom == level %} chip--current{% endif %}"
+           href="?inspection_id={{ view.inspection.inspection_id }}&amp;region={{ selected_index }}&amp;mode={{ mode }}&amp;zoom={{ level }}"
+           {% if zoom == level %}aria-current="true"{% endif %}>{{ level }}&times;</a>
+        {% endfor %}
+      </fieldset>
+    </div>
+  </section>
+
+  <section class="regions__measurements" aria-label="Measurements">
+    <div class="panel">
+      <h2 class="panel__title">Measurements</h2>
+      <dl class="datalist">
+        <dt>Class</dt><dd>{{ selected_region.class_code }} <span class="tag tag--provisional">provisional</span></dd>
+        <dt>Area</dt><dd>{{ selected_region.area_px|px }}</dd>
+        <dt>Length</dt><dd>{{ selected_region.length_px|px(1) }}</dd>
+        <dt>Maximum width</dt><dd>{{ selected_region.max_width_px|px(1) }}</dd>
+        <dt>Bounding box</dt><dd>x {{ selected_region.bbox_x }}, y {{ selected_region.bbox_y }}, {{ selected_region.bbox_width }} &times; {{ selected_region.bbox_height }} px</dd>
+        <dt>Centroid</dt><dd>{% if selected_region.centroid_x is not none %}x {{ selected_region.centroid_x|number(1) }}, y {{ selected_region.centroid_y|number(1) }}{% else %}&mdash;{% endif %}</dd>
+      </dl>
+      <p class="note">
+        Length is medial-axis arc length, with diagonal steps counted as &radic;2.
+        Maximum width is the widest inscribable point measured along the region skeleton.
+        It may differ from the widest visual extent: a local bulge in a thin crack does not
+        register, because the inscribed circle there is still limited by the crack&rsquo;s narrowness.
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel__title">Source</h2>
+      <dl class="datalist datalist--mono">
+        <dt>Product</dt><dd>{{ view.inspection.product_id or "&mdash;"|safe }}</dd>
+        <dt>Station</dt><dd>{{ view.inspection.station_code }}</dd>
+        <dt>Material</dt><dd>{{ view.inspection.material_code or "&mdash;"|safe }}</dd>
+        <dt>Captured</dt><dd>{{ view.inspection.captured_at }}</dd>
+        <dt>Image SHA-256</dt><dd class="break">{{ view.inspection.image_sha256 or "&mdash;"|safe }}</dd>
+        <dt>Model</dt><dd>{{ view.inspection.model_file_name }} &middot; {{ view.inspection.model_version }}</dd>
+        <dt>Model SHA-256</dt><dd class="break">{{ view.inspection.artefact_sha256 }}</dd>
+        <dt>Profile</dt><dd>v{{ view.inspection.profile_version }}</dd>
+        <dt>Crack threshold</dt><dd>{{ view.inspection.crack_threshold }}</dd>
+        <dt>Scratch threshold</dt><dd>{{ view.inspection.scratch_threshold }}</dd>
+        <dt>Minimum area</dt><dd>{{ view.inspection.minimum_area_px }} px</dd>
+        <dt>Minimum skeleton</dt><dd>{{ view.inspection.minimum_skeleton_px }} px</dd>
+      </dl>
+      <p class="note note--quiet">Thresholds are read-only here. They are stored with the inspection so this result stays reproducible.</p>
+    </div>
+  </section>
+</div>
+{% elif view %}
+<div class="panel empty-state">
+  <h2>No regions on inspection {{ view.inspection.inspection_id }}</h2>
+  <p>This inspection is recorded as <strong>{{ view.inspection.status|status_label }}</strong>. There is nothing to enlarge.</p>
+  <p><a class="button" href="/history?status=regions_found">Find an inspection with regions</a></p>
+</div>
+{% else %}
+<div class="panel empty-state">
+  <h2>Nothing to show</h2>
+  <p>No inspection has been recorded yet.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/region-detail.js" defer></script>
+{% endblock %}

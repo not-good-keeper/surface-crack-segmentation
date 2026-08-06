@@ -1,0 +1,67 @@
+/* Responsive behaviour.
+   Checked at 1440, 1024, 768, 390 and 360 px. Below 900 px the fixed sidebar becomes
+   a scrollable top navigation, the image and summary stack with the result state kept
+   near the top, and tables scroll horizontally rather than shrinking below a readable
+   font size. Nothing depends on hover at any width. */
+
+@media (max-width: 1200px) {
+  .regions { grid-template-columns: 200px minmax(0, 1fr); }
+  .regions__measurements { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+}
+
+@media (max-width: 1000px) {
+  .live { grid-template-columns: minmax(0, 1fr); }
+  /* Result state first on narrow screens: the operator needs it before the image. */
+  .live__summary { order: -1; }
+
+  /* Capture stacks the other way round on purpose: the camera controls are what the
+     operator is reaching for, and pushing them below a previous result would mean
+     scrolling past an old inspection to take a new one. */
+  .capture { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+
+  .nav {
+    position: static;
+    border-right: 0;
+    border-bottom: 2px solid var(--line-hard);
+    overflow-x: auto;
+  }
+  .nav__list { display: flex; }
+  .nav__item { border-bottom: 0; border-right: 1px solid var(--line-soft); flex: 1 0 auto; }
+  .nav__link { justify-content: center; padding: 0 var(--sp-4); white-space: nowrap; }
+  .nav__link--current { box-shadow: inset 0 -4px 0 var(--line-hard); }
+
+  .regions { grid-template-columns: minmax(0, 1fr); }
+  .regions__list { order: 2; }
+  .regions__viewer { order: 1; }
+  .regions__measurements { order: 3; grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 700px) {
+  .main { padding: var(--sp-3); }
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .field { width: 100%; }
+  .field--actions { flex-direction: row; }
+  .field--actions .button { flex: 1; }
+  .viewer--split { grid-template-columns: 1fr; }
+  .cards { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+  .banner__headline { font-size: 19px; }
+  .datalist { grid-template-columns: minmax(0, 1fr); gap: 0 0; }
+  .datalist dt { margin-top: var(--sp-2); }
+}
+
+@media (max-width: 420px) {
+  body { font-size: 15px; }
+  .card__value { font-size: 22px; }
+  .strip__items { gap: var(--sp-1) var(--sp-3); }
+  .button { padding: 0 var(--sp-3); }
+  .page-header { align-items: flex-start; flex-direction: column; }
+}
+
+@media print {
+  .nav, .button-row, .demo-controls, .filter-bar { display: none; }
+  .panel, .card { border-color: #000; }
+}

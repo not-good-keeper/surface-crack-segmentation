@@ -1,0 +1,8 @@
+{# The result banner. Four states, each carried by wording, fill AND border together,
+   so it still reads under glare and for a colour-blind operator. None of them is a
+   verdict: the interface reports what was found and the operator decides. #}
+<div class="banner banner--{{ summary.state }}" role="status" aria-live="polite" id="result-banner">
+  <p class="banner__headline">{{ summary.headline }}</p>
+  {% if summary.detail %}<p class="banner__detail">{{ summary.detail }}</p>{% endif %}
+  {% if summary.reason %}<p class="banner__reason">{{ summary.reason }}</p>{% endif %}
+</div>

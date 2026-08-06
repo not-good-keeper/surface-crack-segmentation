@@ -1,0 +1,21 @@
+# Runtime dependencies.
+#
+# Pinned to compatible ranges rather than exact versions so a security release can be
+# picked up without editing this file. The Phase 2 report records the versions the
+# project was measured against: FastAPI 0.111, Uvicorn 0.30, Jinja2 3.1, NumPy 1.26,
+# Pillow (in place of OpenCV for the mock asset generator), SQLite from the standard
+# library.
+fastapi>=0.111,<1.0
+uvicorn[standard]>=0.30
+jinja2>=3.1,<4.0
+pydantic>=2.7,<3.0
+pydantic-settings>=2.2,<3.0
+python-multipart>=0.0.9
+numpy>=1.26
+pillow>=10.3
+
+# The inference core needs these; they are NOT required in mock mode and are left
+# commented so a demo deployment stays small. Uncomment for INSPECTION_PROVIDER=real.
+# onnxruntime>=1.18
+# opencv-python-headless>=4.10
+# scikit-image>=0.24

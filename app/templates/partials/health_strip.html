@@ -1,0 +1,39 @@
+{# Persistent health strip. Repeated on every screen so station state is never
+   something the operator has to go and look for. #}
+<section class="strip strip--{{ health.overall }}" aria-label="Station health">
+  <ul class="strip__items">
+    <li class="strip__item">
+      <span class="strip__key">Camera</span>
+      <span class="strip__value">{{ health.camera.state_label }}</span>
+    </li>
+    <li class="strip__item">
+      <span class="strip__key">Model</span>
+      <span class="strip__value">{{ health.model_version }}{% if health.model_size_mb %} &middot; {{ health.model_size_mb }} MB{% endif %} &middot; hash {{ health.model_sha_short }}</span>
+    </li>
+    <li class="strip__item">
+      <span class="strip__key">Profile</span>
+      <span class="strip__value">{{ health.profile_label }}{% if health.profile_version %} v{{ health.profile_version }}{% endif %}</span>
+    </li>
+    <li class="strip__item">
+      <span class="strip__key">Database</span>
+      <span class="strip__value">{{ health.database.state_label }}</span>
+    </li>
+    <li class="strip__item">
+      <span class="strip__key">Disk</span>
+      <span class="strip__value">{{ health.disk_value or health.disk.state_label }}</span>
+    </li>
+    <li class="strip__item">
+      <span class="strip__key">Last latency</span>
+      <span class="strip__value">{% if health.latency_ms %}{{ health.latency_ms }} ms{% else %}&mdash;{% endif %}</span>
+    </li>
+  </ul>
+
+  {% if health.overall != "ok" %}
+  <p class="strip__alert">
+    <strong>{{ health.overall_label }}</strong>
+    {% if health.failing %}Failing: {{ health.failing|join(", ") }}.{% endif %}
+    {% if health.degraded %}Degraded: {{ health.degraded|join(", ") }}.{% endif %}
+    <a href="/status">Open Status</a>
+  </p>
+  {% endif %}
+</section>

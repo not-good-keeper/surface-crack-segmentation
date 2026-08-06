@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block heading %}Inspection History{% endblock %}
+
+{% block content %}
+<section class="panel" aria-labelledby="filters-heading">
+  <h2 class="panel__title" id="filters-heading">Filters</h2>
+  <form class="filter-bar" method="get" action="/history" id="history-filters">
+    <div class="field">
+      <label for="date_from">Date from</label>
+      <input type="date" id="date_from" name="date_from" value="{{ filters.date_from or '' }}">
+    </div>
+    <div class="field">
+      <label for="date_to">Date to</label>
+      <input type="date" id="date_to" name="date_to" value="{{ filters.date_to or '' }}">
+    </div>
+    <div class="field">
+      <label for="material">Material</label>
+      <select id="material" name="material">
+        <option value="">All</option>
+        {% for code in options.materials %}
+        <option value="{{ code }}"{% if filters.material == code %} selected{% endif %}>{{ code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="status">Status</label>
+      <select id="status" name="status">
+        <option value="">All</option>
+        {% for item in options.statuses %}
+        <option value="{{ item.code }}"{% if filters.status == item.code %} selected{% endif %}>{{ item.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="class">Class</label>
+      <select id="class" name="class">
+        <option value="">All</option>
+        {% for code in options.classes %}
+        <option value="{{ code }}"{% if filters.defect_class == code %} selected{% endif %}>{{ code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="station">Station</label>
+      <select id="station" name="station">
+        <option value="">All</option>
+        {% for code in options.stations %}
+        <option value="{{ code }}"{% if filters.station == code %} selected{% endif %}>{{ code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="product_id">Product ID</label>
+      <input type="search" id="product_id" name="product_id" value="{{ filters.product_id or '' }}" placeholder="batch-77/*">
+    </div>
+    <div class="field field--actions">
+      <button type="submit" class="button button--primary">Apply</button>
+      <a class="button" href="/history">Clear</a>
+    </div>
+  </form>
+</section>
+
+<section class="panel" aria-labelledby="results-heading">
+  <h2 class="panel__title" id="results-heading">
+    {{ page.total|number }} matching inspection{% if page.total != 1 %}s{% endif %}
+  </h2>
+
+  {% if page.rows %}
+  <div class="table-scroll">
+    <table class="table table--compact">
+      <thead>
+        <tr>
+          <th scope="col">Timestamp</th>
+          <th scope="col">Product ID</th>
+          <th scope="col">Material</th>
+          <th scope="col">Status</th>
+          <th scope="col">Regions</th>
+          <th scope="col">Max length</th>
+          <th scope="col">Model</th>
+          <th scope="col">Station</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in page.rows %}
+        <tr>
+          <th scope="row"><a class="link-action" href="/inspections/{{ row.inspection_id }}?back={{ query|urlencode }}">{{ row.captured_at|short_time }}</a></th>
+          <td>{{ row.product_id or "&mdash;"|safe }}</td>
+          <td>{{ row.material_code or "&mdash;"|safe }}</td>
+          <td><span class="status status--{{ row.status }}">{{ row.status|status_label }}</span></td>
+          <td class="num">{% if row.status in ("acquisition_failure", "processing_failure") %}&mdash;{% else %}{{ row.region_count }}{% endif %}</td>
+          <td class="num">{% if row.max_length_px %}{{ row.max_length_px|px }}{% else %}&mdash;{% endif %}</td>
+          <td>{{ row.model_version }}</td>
+          <td>{{ row.station_code }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% include "partials/pagination.html" %}
+
+  <div class="button-row">
+    <a class="button" href="/api/inspections/export.csv?{{ query }}">Export CSV</a>
+    <a class="button" href="/api/inspections/export.json?{{ query }}">Export JSON</a>
+  </div>
+  <p class="note note--quiet">The export uses the same filter as the table above.</p>
+  {% else %}
+  <div class="empty-state">
+    <h3>No inspections match these filters</h3>
+    <p>
+      {% if filters.active() %}Try widening the date range or clearing a filter.{% else %}Nothing has been recorded yet.{% endif %}
+    </p>
+    <p><a class="button" href="/history">Clear filters</a></p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/history.js" defer></script>
+{% endblock %}

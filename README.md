@@ -37,10 +37,60 @@ than smoothed over, because the class-agnostic headline metrics do not reveal it
 |---|---|
 | `dataset/` | Fetch, adapt, normalise, split, QA. Regenerates the corpus from source |
 | `bench/` | Training, metrics, model zoo, evaluation and export |
-| `app/` | Inference, post-processing, geometry, batch CLI |
+| `app/` | **Both layers.** Inference core (`inference.py`, `postprocess.py`, `profiles.py`, `batch.py`) and the Phase 2 web application (`main.py`, `routes/`, `services/`, `repositories/`, `providers/`, `templates/`, `static/`) |
+| `api/` | Vercel entry point — the same ASGI app, nothing else |
+| `scripts/` | Seed, reset, register a model, build the deployable demo bundle |
+| `tests/` | Application test suite. The pipeline's own tests stay in `app/test_pipeline.py` |
 | `defectforge/` | Synthetic defect compositor |
 | `experiments/` | One script per stored result — see `experiments/README.md` |
 | `docs/` | Requirements, architecture, dataset provenance, decisions, results index |
+
+## Two environments, on purpose
+
+The training stack pins torch on **Python 3.9**; the web application needs **3.11+**
+(`pydantic-settings`, `datetime.UTC`). One interpreter cannot serve both, so there are two:
+
+| Environment | Python | For | Holds |
+|---|---|---|---|
+| `.venv` | 3.9 | Training, benchmarking, export | torch, timm, albumentations, cv2, onnxruntime |
+| `.venv-app` | 3.13 | The web application and its tests | fastapi, pydantic, Pillow — plus cv2/onnxruntime/scikit-image for real mode |
+
+`app/inference.py`, `app/postprocess.py`, `app/profiles.py` and `app/batch.py` are
+imported by both, so they are kept 3.9-compatible. `pyproject.toml` records why ruff is
+not allowed to "modernise" them.
+
+## Running the interface
+
+```bash
+.venv-app/Scripts/python.exe -m pip install -r requirements-dev.txt
+cp .env.example .env
+.venv-app/Scripts/python.exe -m app.main            # http://127.0.0.1:8000
+.venv-app/Scripts/python.exe -m pytest tests
+```
+
+It starts in **mock mode** with no model file: every screen works, and each says the
+results are generated rather than measured. To inspect for real:
+
+```bash
+# 1. record the exported model, so the Status screen can identify it
+.venv-app/Scripts/python.exe -m scripts.register_model \
+    --model data/export/<file>.onnx --version v13 --params 1430000
+
+# 2. switch the provider
+INSPECTION_PROVIDER=real MODEL_PATH=data/export/<file>.onnx \
+    .venv-app/Scripts/python.exe -m app.main
+```
+
+Until `register_model` is run, the stored model hash does not match the file and
+inspection is **stopped** on purpose — a system that quietly accepted an unidentified
+model file would produce results it could not attribute to anything.
+
+Screens: Live, **Capture**, Regions, Batch, History, Materials, Status. Capture is the
+only one not in the Phase 2 wireframes; it takes a frame from the device camera or a
+photo from disk and runs it through the same provider, record mapping and database
+writer as a station inspection. Deployment is covered in `docs/DEPLOYMENT.md` — the
+short version is that Vercel runs the mock demo and the station runs the real pipeline,
+and those are different things by design, not by limitation.
 
 ## Reproducing the corpus
 
@@ -94,6 +144,16 @@ invents its own IDs forces a reader holding the report to build the mapping them
 | 6 | `docs/RESULTS.md` | Which stored run supports which claim |
 | 7 | `docs/INTEGRATION.md` | How to call the model from an app: tensor contract, class decision, geometry, limits |
 | 8 | `docs/ATTRIBUTION.md` | Licences. The corpus mixes CC0, CC-BY, CC-BY-NC and research-only terms |
+
+### The Phase 2 application
+
+| File | Contents |
+|---|---|
+| `docs/UI_README.md` | What the interface shows and refuses to show, install, seed, run, test |
+| `docs/UI_IMPLEMENTATION_NOTES.md` | Screens, routes, templates, responsive behaviour, accessibility, components |
+| `docs/MODEL_INTEGRATION.md` | The provider boundary, mock vs real, and what must never be reimplemented in the UI |
+| `docs/DATABASE.md` | Schema, relationships, indexes, seed data, retention |
+| `docs/DEPLOYMENT.md` | Station deployment vs the Vercel demo, and why they are not the same thing |
 
 Known gaps and unmet claims are recorded where the work is, not in a separate list:
 open items in `ARCHITECTURE.md` §10.3, withdrawn requirements in `REQUIREMENTS.md`,

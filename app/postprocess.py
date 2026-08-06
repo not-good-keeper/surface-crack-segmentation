@@ -5,32 +5,26 @@ Deterministic: same logits + same profile -> same regions.
 """
 import hashlib
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 from datetime import datetime, timezone
 
 import cv2
 import numpy as np
 
+try:                                   # as a package, from the web app
+    from app.profiles import ACTIVE_PROFILE, Profile
+except ImportError:                    # on sys.path, from bench/ and app/batch.py
+    from profiles import ACTIVE_PROFILE, Profile  # type: ignore[no-redef]
+
 BACKGROUND, CRACK, SCRATCH = 0, 1, 2
 CLASS_NAMES = {CRACK: "crack", SCRATCH: "scratch"}
 CLASS_COLOUR = {CRACK: (60, 60, 235), SCRATCH: (235, 170, 40)}    # BGR
 
-
-@dataclass(frozen=True)
-class Profile:
-    """Versioned post-processing config, recorded with every result.
-
-    Thresholds are per class (a scratch is wider and higher-contrast than a hairline
-    crack) and were chosen on val by bench/class_thresh.py, never on a test split. The
-    area and skeleton floors come from the false-positive budget, NFR-03.
-    """
-
-    profile_id: str = "conveyor-v2"
-    crack_thresh: float = 0.40
-    scratch_thresh: float = 0.20
-    min_area_px: int = 24
-    min_skeleton_px: int = 6
-    connectivity: int = 8
+# Re-exported, not redefined: `profiles.py` is stdlib-only so the interface can read the
+# active thresholds without cv2 installed, and T-06 asserts the two are the same object.
+__all__ = ["Profile", "ACTIVE_PROFILE", "softmax", "class_map", "extract_regions",
+           "overlay", "build_record", "record_to_rows", "BACKGROUND", "CRACK",
+           "SCRATCH", "CLASS_NAMES", "CLASS_COLOUR"]
 
 
 def softmax(logits):
