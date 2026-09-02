@@ -208,10 +208,29 @@ def test_geometry_is_in_source_pixels():
               f"{shape}: overlay at source resolution (got {ov.shape[:2]})")
 
     # Same scene at two scales. What the model sees is near-identical, because both are
-    # rescaled to 256 before inference -- so the marked FRACTION of the part should
-    # match, while the pixel counts must not. Measured in model space both fractions
-    # would still match, but the shape checks above would already have failed; this adds
-    # that the answer travels back up sensibly rather than being cropped or padded.
+    # rescaled to the model's input size before inference -- so the marked FRACTION of
+    # the part should match, while the pixel counts must not.
+    #
+    # Uses a real fixture rather than random noise. Noise was the original choice and it
+    # made this assertion depend on the model hallucinating: once the channel-order bug
+    # was fixed the model correctly found nothing in noise at either scale, and "more
+    # pixels at higher resolution" became 0 > 0. A test that only passes while the model
+    # is broken is worse than no test.
+    fx = Path(__file__).resolve().parent.parent / "tests/fixtures/images"
+    picks = sorted(fx.glob("*.png"))[:6] if fx.exists() else []
+    base = None
+    for q in picks:
+        cand = cv2.imread(str(q), cv2.IMREAD_COLOR)
+        if cand is None:
+            continue
+        _, _, cm = insp.inspect(cv2.resize(cand, (600, 600)), b"x")
+        if (cm > 0).sum() > 50:      # need a fixture this model actually fires on
+            base = cand
+            break
+    if base is None:
+        print("  SKIP  no fixture produces a detection to scale-test with")
+        return
+
     small = cv2.resize(base, (300, 300), interpolation=cv2.INTER_LINEAR)
     big = cv2.resize(base, (900, 900), interpolation=cv2.INTER_LINEAR)
     _, _, cs = insp.inspect(small, b"x")
