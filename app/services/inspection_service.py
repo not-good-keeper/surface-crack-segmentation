@@ -155,7 +155,7 @@ def next_demo_inspection(
 #: worker.  Anything under this is passed to the provider even if it is obviously not an
 #: image, because the provider is what turns an unreadable file into a recorded
 #: acquisition failure — rejecting it here would lose the record instead of making one.
-CAPTURE_MAX_BYTES = 16 * 1024 * 1024
+CAPTURE_MAX_BYTES = 20 * 1024 * 1024  # fallback; settings.max_upload_bytes is authoritative
 
 
 class CaptureTooLarge(ValueError):
@@ -187,14 +187,15 @@ def capture_inspection(
     the capture screen says so on every result while the provider is `mock`.
     """
     settings = settings or get_settings()
-    if len(image_bytes) > CAPTURE_MAX_BYTES:
+    limit = settings.max_upload_bytes
+    if len(image_bytes) > limit:
         # MiB on both sides of the sentence. Dividing the limit by 1e6 here and by
         # 1048576 in the template had the screen offering 16 MB and the error refusing
         # at 17.
         mib = 1024 * 1024
         raise CaptureTooLarge(
             f"The capture is {len(image_bytes) / mib:.1f} MB; the limit is "
-            f"{CAPTURE_MAX_BYTES // mib} MB."
+            f"{limit // mib} MB."
         )
 
     provider = get_provider(settings)

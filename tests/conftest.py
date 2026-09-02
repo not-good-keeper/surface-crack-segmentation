@@ -36,6 +36,12 @@ def configure_environment(workspace: Path):
     os.environ["INSPECTION_PROVIDER"] = "mock"
     os.environ["DEMO_MODE"] = "true"
     os.environ["MOCK_SEED"] = "404"
+    # The workspace is the data root, so paths stored during a test relativise against
+    # it exactly as they do against data/ on a station.
+    os.environ["DATA_ROOT"] = str(workspace)
+    # Disk health is tested explicitly with fault injection; normal tests must not
+    # depend on how full the developer's machine happens to be.
+    os.environ["MIN_FREE_DISK_GB"] = "0"
     os.environ["MODEL_PATH"] = str(workspace / "export" / "model.onnx")
     os.environ["METRICS_PATH"] = str(Path(__file__).resolve().parent.parent / "data" / "metrics" / "coverage.json")
 

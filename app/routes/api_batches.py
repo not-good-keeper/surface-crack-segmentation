@@ -41,8 +41,6 @@ def start_batch(
             product_prefix=payload.product_prefix,
             dry_run=payload.dry_run,
             settings=settings,
-            # A serverless host freezes background threads once the response is sent,
-            # so the work has to finish inside the request there.
             synchronous=settings.run_batches_synchronously,
         )
     except batch_service.UnsafeFolder as exc:

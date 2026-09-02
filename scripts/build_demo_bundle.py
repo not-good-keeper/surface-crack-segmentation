@@ -3,7 +3,7 @@
     python -m scripts.build_demo_bundle
 
 The full local seed writes about 280 images at up to 960 px and takes minutes; that is
-right for a demo on a laptop and wrong for a serverless upload. This script seeds the
+right for a demo on a laptop and wrong for a packaged upload. This script seeds the
 same sequence with fewer inspections and a smaller image cap, then reports the bundle
 size so it can be checked against the platform's limit before deploying.
 
@@ -46,8 +46,6 @@ def main() -> None:
     args = parser.parse_args()
 
     settings = get_settings()
-    if settings.is_serverless:
-        raise SystemExit("Run this locally, not on the serverless host.")
 
     # The cap is read by the mock provider through settings.
     object.__setattr__(settings, "mock_image_max_width", args.cap)

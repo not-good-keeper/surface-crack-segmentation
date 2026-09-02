@@ -30,7 +30,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_host: str = "0.0.0.0"
+    app_host: str = "127.0.0.1"
     app_port: int = 8000
     app_env: str = "development"
 
@@ -38,10 +38,6 @@ class Settings(BaseSettings):
     inspection_provider: str = Field(default="mock")
 
     data_root: Path = Path("data")
-    #: Overrides the writable root. Left unset, it follows is_serverless.
-    runtime_root: Path | None = None
-    #: Forced on by the VERCEL environment variable; see DEPLOYMENT.md.
-    serverless: bool = False
 
     database_path: Path = Path("data/inspection.db")
     model_path: Path = Path("data/export/model.onnx")
@@ -51,7 +47,11 @@ class Settings(BaseSettings):
     overlay_root: Path = Path("data/overlays")
     source_root: Path = Path("data/sources")
     export_root: Path = Path("data/exports")
+    log_root: Path = Path("data/logs")
     metrics_path: Path = Path("data/metrics/coverage.json")
+
+    #: Largest capture the interface accepts, in MB.
+    max_upload_mb: int = 20
 
     min_free_disk_gb: float = 5.0
 
@@ -68,8 +68,7 @@ class Settings(BaseSettings):
     #: The deployed demo bundle uses a cap to keep the upload small; a station does not.
     mock_image_max_width: int = 0
 
-    #: Run batch work on the request thread instead of a worker thread. Required on a
-    #: serverless host, where a background thread is frozen once the response is sent.
+    #: Run batch work on the request thread instead of a worker thread.
     batch_synchronous: bool = False
 
     @field_validator("inspection_provider")
@@ -81,19 +80,12 @@ class Settings(BaseSettings):
         return v
 
     # -- resolved absolute paths ------------------------------------------------
-    # Two data roots exist so the application can run on a read-only filesystem.
+    # Reads and writes share one root: the data/ folder beside the code. The station
+    # and the container both run on a normal writable filesystem, so the split that
+    # the retired serverless path needed is gone.
     #
-    #   bundled_data_dir  the data/ folder shipped with the code. Always readable,
-    #                     never writable on a serverless host.
-    #   runtime_data_dir  where writes go. The same folder locally; /tmp on a
-    #                     serverless host, which is the only writable path there.
-    #
-    # Stored image paths are recorded relative to whichever root contains them, so a
-    # database built on one machine still resolves on another.
-
-    @property
-    def is_serverless(self) -> bool:
-        return self.serverless or bool(os.environ.get("VERCEL"))
+    # Stored image paths are recorded relative to that root, so a database built on
+    # one machine still resolves on another.
 
     @property
     def bundled_data_dir(self) -> Path:
@@ -101,10 +93,6 @@ class Settings(BaseSettings):
 
     @property
     def runtime_data_dir(self) -> Path:
-        if self.runtime_root:
-            return Path(self.runtime_root)
-        if self.is_serverless:
-            return Path("/tmp/vision404-data")
         return self.bundled_data_dir
 
     def _runtime(self, configured: Path) -> Path:
@@ -151,6 +139,14 @@ class Settings(BaseSettings):
         return self._runtime(self.export_root)
 
     @property
+    def log_dir(self) -> Path:
+        return self._runtime(self.log_root)
+
+    @property
+    def max_upload_bytes(self) -> int:
+        return self.max_upload_mb * 1024 * 1024
+
+    @property
     def metrics_file(self) -> Path:
         return self._bundled(self.metrics_path)
 
@@ -181,7 +177,7 @@ class Settings(BaseSettings):
 
     @property
     def run_batches_synchronously(self) -> bool:
-        return self.batch_synchronous or self.is_serverless
+        return self.batch_synchronous
 
     def ensure_dirs(self) -> None:
         for d in (

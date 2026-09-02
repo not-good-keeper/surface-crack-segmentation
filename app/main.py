@@ -30,41 +30,15 @@ from app.routes import api_batches, api_inspections, api_materials, api_status, 
 BASE_DIR = Path(__file__).resolve().parent
 
 
-def bootstrap_runtime_data(settings) -> None:
-    """Prepare the writable data root.
-
-    On a serverless host the deployment is read-only apart from /tmp, so the database
-    that was seeded at build time is copied into /tmp on the first request of each cold
-    start. Images stay where they are and are read from the bundled folder; only new
-    ones written by the demo control land in /tmp. Every write is therefore per-instance
-    and disappears when the instance does - which is fine for a demo and is the reason
-    this deployment mode is not a station deployment. See DEPLOYMENT.md.
-    """
-    import shutil
-
-    if not settings.is_serverless:
-        return
-    settings.runtime_data_dir.mkdir(parents=True, exist_ok=True)
-    target = settings.db_file
-    source = settings.bundled_db_file
-    if not target.exists() and source.exists():
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, target)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    bootstrap_runtime_data(settings)
     settings.ensure_dirs()
     init_database(settings.db_file)
 
     # Mock mode is expected to be demonstrable the moment it starts, so an empty
-    # database seeds itself once.  Real mode never fabricates rows, and a serverless
-    # host never seeds on demand: seeding generates hundreds of images and takes
-    # minutes, far beyond any function timeout. There the database is built during
-    # deployment by scripts/build_demo_bundle.py.
-    if settings.is_mock and not settings.is_serverless:
+    # database seeds itself once.  Real mode never fabricates rows.
+    if settings.is_mock:
         conn = connect(settings.db_file)
         try:
             needs_seed = not database_is_seeded(conn)
