@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -20,6 +21,7 @@ from data import CrackPatches                         # noqa: E402
 from metrics import evaluate_multiclass               # noqa: E402
 from train import predict_split                       # noqa: E402
 
+ROOT = Path(__file__).resolve().parent.parent
 SPLIT = "test_factory"          # the headline; breaking down anything else is a different question
 MIN_TRUSTWORTHY = 25
 
@@ -51,7 +53,17 @@ def main():
     groups = sorted(probe.pos[args.by].unique())
     print(f"{args.tag}  {SPLIT}  by {args.by}  "
           f"(best_epoch={run.get('best_epoch', 'final')})\n")
-    print(f"{args.by:<14}{'n':>5}{'IoU':>9}{'clDice':>9}{'det':>8}"
+    # How many defect-bearing images of this group the model actually trained on.
+    # test_factory is described as "factory materials", which invites the reading that
+    # the model has seen them. It has not seen all of them: every one of the 49 epoxy
+    # images sits in this split and none in train, so 31 % of the headline is unseen-
+    # material transfer scored as if it were in-distribution. A benchmark should say
+    # that itself rather than leave it to whoever thinks to cross-tabulate.
+    man = pd.read_csv(ROOT / "data/manifest_split.csv")
+    seen = (man[man.role.isin(["positive", "scratch"]) & (man.split == "train")]
+            .groupby(args.by).size().to_dict())
+
+    print(f"{args.by:<14}{'n':>5}{'train n':>9}{'IoU':>9}{'clDice':>9}{'det':>8}"
           f"{'crack rec':>11}{'scr rec':>9}")
 
     rows = []
@@ -66,23 +78,41 @@ def main():
         if r is None:
             continue
         r.update({k: v for k, v in r["any_defect"].items()})
+        ntr = int(seen.get(g, 0))
         flag = "  <- n too small to quote" if n < MIN_TRUSTWORTHY else ""
-        print(f"{str(g):<14}{n:>5}{r['iou']:>9.4f}{r['cldice']:>9.4f}"
+        if ntr == 0:
+            flag = "  <- UNSEEN: 0 training images" + flag
+        print(f"{str(g):<14}{n:>5}{ntr:>9}{r['iou']:>9.4f}{r['cldice']:>9.4f}"
               f"{r['detect_rate']:>8.3f}{r['crack_class_recall']:>11.3f}"
               f"{r['scratch_class_recall']:>9.3f}{flag}")
-        rows.append((g, n, r))
+        rows.append((g, n, r, ntr))
 
     if rows:
         # The unweighted mean over materials is NOT the headline: the headline is
         # weighted by how many images each material happens to contribute, so a large
         # easy material can carry it. Printing both makes that visible.
-        w = np.array([n for _, n, _ in rows], float)
-        cl = np.array([r["cldice"] for _, _, r in rows], float)
+        w = np.array([n for _, n, _, _ in rows], float)
+        cl = np.array([r["cldice"] for _, _, r, _ in rows], float)
         print(f"\nimage-weighted clDice (= the headline): "
               f"{float((w * cl).sum() / w.sum()):.4f}")
         print(f"material-weighted clDice (each material equal): {float(cl.mean()):.4f}")
         print("A gap between these two means the headline is being carried by "
               "whichever material contributes the most images.")
+
+        # The same number over the materials the model was actually trained on. The two
+        # answer different questions -- "how well does it inspect what we taught it" and
+        # "how well does it score on this split" -- and only the first is a statement
+        # about the model rather than about how the split happened to be cut.
+        seen_rows = [(n, r) for _, n, r, ntr in rows if ntr > 0]
+        unseen = [(g, n) for g, n, _, ntr in rows if ntr == 0]
+        if unseen and seen_rows:
+            ws = np.array([n for n, _ in seen_rows], float)
+            cs = np.array([r["cldice"] for _, r in seen_rows], float)
+            share = sum(n for _, n in unseen) / w.sum()
+            print(f"\nseen materials only: clDice "
+                  f"{float((ws * cs).sum() / ws.sum()):.4f} over {int(ws.sum())} images")
+            print(f"excluded as unseen ({share:.0%} of the split): "
+                  + ", ".join(f"{g} n={n}" for g, n in unseen))
 
 if __name__ == "__main__":
     main()
