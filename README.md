@@ -178,9 +178,14 @@ Known gaps and unmet claims are recorded where the work is, not in a separate li
 open items in `ARCHITECTURE.md` §10.3, withdrawn requirements in `REQUIREMENTS.md`,
 per-material coverage limits in `INTEGRATION.md`.
 
-## Licence note
+## Licence
 
-The trained model derives from data including non-commercial and research-only sources
-(MVTec, KolektorSDD2, the casting set). Any release beyond a hackathon must re-check
-`docs/ATTRIBUTION.md` per source — a model trained on NC data is not automatically free
-of the NC condition.
+**CC BY-NC-SA 4.0** — see [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md). Use, adapt and
+redistribute non-commercially, with credit; derivatives carry the same licence.
+
+The terms are set by the data, not by preference. The trained model derives from sources
+including non-commercial and research-only data (MVTec, KolektorSDD2, the casting set),
+and a model trained on NC data is not automatically free of the NC condition, so the
+restriction reaches `data/export/model.onnx` and anything built from it. Any release
+must re-check `docs/ATTRIBUTION.md` per source — several are research-only and some were
+deliberately excluded from redistribution.
