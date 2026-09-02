@@ -8,6 +8,25 @@ The output is a mask, a defect type and per-region geometry. It is **not** an
 accept/reject verdict: that needs customer tolerances the system does not have, and
 over-rejection is the failure this project exists to avoid.
 
+## Authorship
+
+A two-person hackathon project (Team VISION 404). The split of work:
+
+| Area | Author |
+|---|---|
+| Dataset pipeline, synthetic compositor, corpus QA and splits — `dataset/`, `defectforge/` | Nethi Kushala Kumar |
+| Model training, metrics, ablations, evaluation and ONNX export — `bench/`, `experiments/` | Nethi Kushala Kumar |
+| Inference core and Phase 2 web application — `app/`, `scripts/`, `tests/` | Nethi Kushala Kumar |
+| Analytics dashboard, container hosting and deployment | Nethi Kushala Kumar |
+| Phase 1/2/3 project documents — `CV_Hackathon - Phase *.pdf` | Kanishk Rungta |
+
+The commit history here is the original authored record — the system was built across
+20 commits between 01:27 and 15:51 on 6 August 2026, and each one is scoped to a single
+decision. The team repository is
+[Kanishk-Rungta/INDUSTRIAL-SURFACE-DEFECT-INSPECTION-SYSTEM](https://github.com/Kanishk-Rungta/INDUSTRIAL-SURFACE-DEFECT-INSPECTION-SYSTEM),
+where the same code was imported as a single squashed commit; this repository preserves
+the per-change history behind it.
+
 ## Current results
 
 Three seeds on frozen splits v7 (`c0fde17c96749567`), MobileNetV3-Small + slim U-Net,
@@ -38,7 +57,7 @@ than smoothed over, because the class-agnostic headline metrics do not reveal it
 | `dataset/` | Fetch, adapt, normalise, split, QA. Regenerates the corpus from source |
 | `bench/` | Training, metrics, model zoo, evaluation and export |
 | `app/` | **Both layers.** Inference core (`inference.py`, `postprocess.py`, `profiles.py`, `batch.py`) and the Phase 2 web application (`main.py`, `routes/`, `services/`, `repositories/`, `providers/`, `templates/`, `static/`) |
-| `api/` | Vercel entry point — the same ASGI app, nothing else |
+| `Dockerfile`, `render.yaml` | Container entry point for the public demo — the same ASGI app in mock mode |
 | `scripts/` | Seed, reset, register a model, build the deployable demo bundle |
 | `tests/` | Application test suite. The pipeline's own tests stay in `app/test_pipeline.py` |
 | `defectforge/` | Synthetic defect compositor |
@@ -89,7 +108,7 @@ Screens: Live, **Capture**, Regions, Batch, History, Materials, Status. Capture 
 only one not in the Phase 2 wireframes; it takes a frame from the device camera or a
 photo from disk and runs it through the same provider, record mapping and database
 writer as a station inspection. Deployment is covered in `docs/DEPLOYMENT.md` — the
-short version is that Vercel runs the mock demo and the station runs the real pipeline,
+short version is that the container runs the mock demo and the station runs the real pipeline,
 and those are different things by design, not by limitation.
 
 ## Reproducing the corpus
@@ -153,7 +172,7 @@ invents its own IDs forces a reader holding the report to build the mapping them
 | `docs/UI_IMPLEMENTATION_NOTES.md` | Screens, routes, templates, responsive behaviour, accessibility, components |
 | `docs/MODEL_INTEGRATION.md` | The provider boundary, mock vs real, and what must never be reimplemented in the UI |
 | `docs/DATABASE.md` | Schema, relationships, indexes, seed data, retention |
-| `docs/DEPLOYMENT.md` | Station deployment vs the Vercel demo, and why they are not the same thing |
+| `docs/DEPLOYMENT.md` | Station deployment vs the container demo, and why they are not the same thing |
 
 Known gaps and unmet claims are recorded where the work is, not in a separate list:
 open items in `ARCHITECTURE.md` §10.3, withdrawn requirements in `REQUIREMENTS.md`,
