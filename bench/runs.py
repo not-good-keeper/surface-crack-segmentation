@@ -68,5 +68,6 @@ def load(tag, device=None):
     ds_kw = dict(classes=classes,
                  camera_profile=run["args"].get("camera_profile", "conveyor"),
                  prep=run["args"].get("prep"),
-                 resize=bool(run["args"].get("resize", False)))
+                 resize=bool(run["args"].get("resize", False)),
+                 rgb=bool(run["args"].get("rgb", False)))
     return model, run, ds_kw

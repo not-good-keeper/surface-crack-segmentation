@@ -211,6 +211,9 @@ def main() -> int:
                     help="warm-start from a checkpoint (.pt or .best.pt). The network "
                          "is fully convolutional, so weights learned at one input size "
                          "load at another and only the scale has to be relearned")
+    ap.add_argument("--rgb", action="store_true",
+                    help="feed RGB, the order the ImageNet-pretrained stem expects. "
+                         "Runs up to V12 fed BGR; omit to reproduce them")
     ap.add_argument("--resize", action="store_true",
                     help="scale the whole frame to 256 instead of cropping at native "
                          "scale; matches app/inference.py (T-02)")
@@ -243,7 +246,7 @@ def main() -> int:
 
     ds_kw = dict(classes=args.classes, camera_profile=args.camera_profile,
                  scratch_frac=args.scratch_frac, prep=args.prep,
-                 resize=args.resize, size=args.size)
+                 resize=args.resize, size=args.size, rgb=args.rgb)
     tr = CrackPatches("train", train=True, synth_dir=args.synth,
                       synth_frac=args.synth_frac, synth_kinds=args.synth_kinds,
                       exclude_materials=args.exclude_materials, seed=args.seed,

@@ -27,7 +27,7 @@ class CrackPatches(Dataset):
                  seed=0, pos_frac=0.65, exclude_materials=(),
                  camera_aug=False, camera_profile="conveyor",
                  synth_dir=None, synth_frac=0.5, synth_kinds=None,
-                 scratch_frac=0.35, prep=None, resize=False):
+                 scratch_frac=0.35, prep=None, resize=False, rgb=False):
         self.size, self.train, self.pos_frac = size, train, pos_frac
         # Whole frame scaled to `size`, instead of a crack-centred crop at native scale.
         # The crop path trains and scores on windows that always contain a defect, so it
@@ -35,6 +35,18 @@ class CrackPatches(Dataset):
         # 14x the true defect area. Resize is what app/inference.py does, so this makes
         # the measured path and the deployed path the same one (T-02).
         self.resize = resize
+        # Channel order fed to the network. cv2 decodes BGR, and every run up to V12
+        # handed that straight to an ImageNet-pretrained stem whose weights -- and the
+        # normalisation constants below -- are defined for RGB. The stem therefore saw
+        # red and blue transposed for its entire life, and app/inference.py converted
+        # to RGB, so the deployed model was fed the opposite of what it trained on:
+        # -0.1412 clDice on test_factory, and exactly 0.0000 on the near-greyscale
+        # steel scratches, which is what pinned the cause.
+        #
+        # Default False reproduces every stored run bit-for-bit. New runs should pass
+        # rgb=True; the value is recorded in the run JSON and stamped into the ONNX so
+        # the app feeds each checkpoint the order it was actually trained on.
+        self.rgb = rgb
         # Built lazily: bench/preprocess.py composes ops into a closure, and Windows
         # spawns dataloader workers by pickling this object.
         self.prep, self._prep_fn = prep, None
@@ -276,6 +288,8 @@ class CrackPatches(Dataset):
                 self._prep_fn = build(self.prep)
             img = self._prep_fn(np.ascontiguousarray(img))
 
+        if self.rgb:
+            img = img[:, :, ::-1]
         x = torch.from_numpy(img.transpose(2, 0, 1).copy()).float().div_(255.)
         x = (x - torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)) / \
             torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)

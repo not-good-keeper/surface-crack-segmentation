@@ -138,6 +138,9 @@ def main() -> int:
     ap.add_argument("--size", type=int, default=SIZE,
                     help="input edge the weights were trained at; stamped into the "
                          "graph so the app feeds them the same scale")
+    ap.add_argument("--rgb", action="store_true",
+                    help="the weights were trained on RGB; stamped so the app matches. "
+                         "Absent means BGR, which is what every run up to V12 used")
     ap.add_argument("--prep", default=None,
                     help="input transform the weights were trained with, stamped into "
                          "the graph metadata so app/inference.py applies it without "
@@ -178,7 +181,8 @@ def main() -> int:
                               opset_version=17,
                               dynamic_axes={"input": {0: "b"}, "logits": {0: "b"}})
             stamp(onnx_path, prep=args.prep or "", classes=args.classes,
-                  resize=int(args.resize), size=args.size)
+                  resize=int(args.resize), size=args.size,
+                  channel_order=("rgb" if args.rgb else "bgr"))
             par = check_parity(m, onnx_path, args.size, args.classes)
             t_med, t_p90 = bench_torch_cpu(m, args.size)
             o_med, o_p90 = bench_onnx(onnx_path, args.size)

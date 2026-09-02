@@ -23,15 +23,22 @@ MEAN = np.array([0.485, 0.456, 0.406], np.float32)
 STD = np.array([0.229, 0.224, 0.225], np.float32)
 
 
-def normalise(img, prep=None):
-    """One 256x256 BGR uint8 tile -> the tensor the graph expects.
+def normalise(img, prep=None, rgb=True):
+    """One BGR uint8 tile -> the tensor the graph expects.
 
     `prep` runs on the uint8 tile, before scaling, which is where bench/data.py puts it.
+
+    `rgb` says whether to transpose the channels cv2 decoded. It is not a style choice:
+    runs up to V12 fed the network BGR while this function converted to RGB, so the
+    deployed model was served the opposite of its training order -- worth -0.1412 clDice
+    on test_factory, and exactly 0.0000 on near-greyscale steel, which is how the cause
+    was finally isolated. The value comes from the graph, never from a default here.
     """
     if prep is not None:
         img = prep(img)
-    rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
-    return ((rgb - MEAN) / STD).transpose(2, 0, 1)
+    arr = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if rgb else img
+    a = arr.astype(np.float32) / 255.0
+    return ((a - MEAN) / STD).transpose(2, 0, 1)
 
 
 def tile_origins(h, w, size=SIZE, stride=192):
@@ -64,7 +71,7 @@ def to_source_scale(prob, shape):
     return p.transpose(2, 0, 1)
 
 
-def preprocess(image_bgr, size=SIZE, prep=None):
+def preprocess(image_bgr, size=SIZE, prep=None, rgb=True):
     """Whole frame -> one tile, by resize. Retained for callers that want a single
     tensor; NOT the inspection path, because it rescales the defect.
 
@@ -74,7 +81,7 @@ def preprocess(image_bgr, size=SIZE, prep=None):
     detection 0.949 -> 0.423 (T-02, bench/input_parity.py).
     """
     img = cv2.resize(image_bgr, (size, size), interpolation=cv2.INTER_LINEAR)
-    return normalise(img, prep)[None]
+    return normalise(img, prep, rgb)[None]
 
 
 class Inspector:
@@ -127,6 +134,11 @@ class Inspector:
         except (TypeError, ValueError):
             self.size = SIZE
 
+        # Channel order, from the graph. Exports before this field exist were all
+        # trained on what cv2 decodes, so BGR is the honest default for them -- a
+        # missing field means an old model, not an RGB one.
+        self.rgb_input = str(meta.get("channel_order", "bgr")).lower() == "rgb"
+
     def describe(self):
         """-> the contract this graph declares about how it must be fed.
 
@@ -142,6 +154,7 @@ class Inspector:
             "classes": self.classes,
             "input_size": self.size,
             "prep": self.prep_spec or "none",
+            "channel_order": "RGB" if self.rgb_input else "BGR",
             "input_mode": "resize whole frame" if self.resize_input
                           else f"tiled at native scale ({self.size} px tiles)",
         }
@@ -149,7 +162,7 @@ class Inspector:
     def logits(self, image_bgr):
         """Single-tile logits by resize. Kept for the ONNX contract and for callers
         that genuinely want one 256x256 view; `probabilities` is the inspection path."""
-        x = preprocess(image_bgr, size=self.size, prep=self.prep)
+        x = preprocess(image_bgr, size=self.size, prep=self.prep, rgb=self.rgb_input)
         return self.sess.run(None, {self.input_name: x})[0][0]     # (C,H,W)
 
     def probabilities(self, image_bgr, stride=192, batch=8):
@@ -175,7 +188,8 @@ class Inspector:
         hits = np.zeros((H, W), np.float32)
         for i in range(0, len(origins), batch):
             chunk = origins[i:i + batch]
-            x = np.stack([normalise(image_bgr[y:y + S, x0:x0 + S], self.prep)
+            x = np.stack([normalise(image_bgr[y:y + S, x0:x0 + S], self.prep,
+                                    self.rgb_input)
                           for y, x0 in chunk])
             out = self.sess.run(None, {self.input_name: x})[0]
             for (y, x0), lg in zip(chunk, out):
