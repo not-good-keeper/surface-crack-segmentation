@@ -109,8 +109,8 @@ DF_CLASSES = ("crack", "hairline_crack", "fatigue_crack", "branch_crack",
               "scratch", "deep_scratch", "corrosion", "rust", "paint_peel",
               "chip", "pit", "dent")
 
-DF_ROOT = Path(r"C:/Users/ADMIN/AppData/Local/Temp/claude/d--rvcv/"
-               r"97c02ddd-578b-4a46-8863-a85903ac92c8/scratchpad/df/DefectForge")
+# Location of the DefectForge source checkout; override with --df-root.
+DF_ROOT = ROOT / "data" / "DefectForge"
 
 
 def main():
