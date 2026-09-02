@@ -69,5 +69,9 @@ def load(tag, device=None):
                  camera_profile=run["args"].get("camera_profile", "conveyor"),
                  prep=run["args"].get("prep"),
                  resize=bool(run["args"].get("resize", False)),
-                 rgb=bool(run["args"].get("rgb", False)))
+                 rgb=bool(run["args"].get("rgb", False)),
+                 # Input edge, like prep/resize/rgb: a 512-trained checkpoint scored at
+                 # 256 is being asked a different question than the one it was trained
+                 # on, and the dataset would silently default rather than complain.
+                 size=int(run["args"].get("size", 256) or 256))
     return model, run, ds_kw
