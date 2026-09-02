@@ -50,6 +50,7 @@ class CrackPatches(Dataset):
         # Built lazily: bench/preprocess.py composes ops into a closure, and Windows
         # spawns dataloader workers by pickling this object.
         self.prep, self._prep_fn = prep, None
+        self._eval_orders = {}
         self.camera_aug = camera_aug and train      # never augment evaluation data
         self.camera_profile = camera_profile
         self.classes = classes
@@ -218,8 +219,27 @@ class CrackPatches(Dataset):
                              interpolation=cv2.INTER_NEAREST)
         return img, msk, KIND_CLASS.get(str(r.kind), BACKGROUND)
 
+    def _eval_order(self, n):
+        """A fixed permutation of 0..n-1, so a truncated evaluation is a sample.
+
+        Evaluation used to walk the pool in manifest order. That is deterministic, which
+        was the point, but it makes `--eval-batches` take a PREFIX rather than a sample:
+        40 batches of val reached only the first 43 % of it, and all 94 scratch rows sit
+        past that cut -- so the threshold sweep that chose the shipped profile never saw
+        a single scratch, and every val_clD in the training logs read ~0.085 high against
+        the full split.
+
+        Shuffled once from a fixed seed, so it is still identical across models, runs and
+        machines -- the property that mattered -- while any prefix of it is now
+        representative of the whole split.
+        """
+        key = int(n)
+        if key not in self._eval_orders:
+            self._eval_orders[key] = np.random.default_rng(20260806).permutation(key)
+        return self._eval_orders[key]
+
     def _pick_row(self, i, rng):
-        """-> (row, want_pos). Training samples; evaluation walks a fixed order."""
+        """-> (row, want_pos). Training samples; evaluation walks a fixed permutation."""
         if self.train:
             want_pos = rng.random() < self.pos_frac
             pool = self.pos if (want_pos and len(self.pos)) else self.neg
@@ -236,12 +256,12 @@ class CrackPatches(Dataset):
         elif len(self.pos) and len(self.neg):
             want_pos = i % 2 == 0
             pool = self.pos if want_pos else self.neg
-            j = (i // 2) % len(pool)
+            j = int(self._eval_order(len(pool))[(i // 2) % len(pool)])
         else:
             # Single-class splits must not index (i//2) or half the images never run.
             want_pos = bool(len(self.pos))
             pool = self.pos if len(self.pos) else self.neg
-            j = i % len(pool)
+            j = int(self._eval_order(len(pool))[i % len(pool)])
         return pool.iloc[j], want_pos
 
     def __getitem__(self, i):
