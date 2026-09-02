@@ -26,7 +26,7 @@ def create(conn: sqlite3.Connection, values: dict[str, Any]) -> int:
             values.get("image_count", 0),
         ],
     )
-    return inserted_id(cur)
+    return int(cur.lastrowid)
 
 
 def finish(conn: sqlite3.Connection, batch_run_id: int, values: dict[str, Any]) -> None:
