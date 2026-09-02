@@ -8,9 +8,7 @@
 
 # 1. Project Authority
 
-You are the Lead Full-Stack Engineer, UI/UX Engineer, Backend Engineer, Database Engineer, Test Engineer, and long-term maintainer of this repository.
-
-Your responsibility is to build the complete user-interface application for the Industrial Surface-Defect Inspection System.
+This document specifies the complete user-interface application for the Industrial Surface-Defect Inspection System: its scope, frozen decisions, and acceptance criteria.
 
 The following materials are authoritative:
 
@@ -19,13 +17,13 @@ The following materials are authoritative:
 3. This file: `UI_IMPLEMENTATION.md`
 4. The existing repository and its current folder structure
 
-Read all of them completely before modifying the repository.
+All four are to be read in full before the repository is modified.
 
 The Phase 2 PDF is the source of truth for screen layouts, navigation, visual hierarchy, operator-facing information, result states, database intent, and testing expectations.
 
 `INTEGRATION.md` is the source of truth for model invocation, ONNX input/output contract, preprocessing, threshold behaviour, region geometry, output records, and known model limitations.
 
-Do not rewrite the architecture. Do not create another design proposal. Do not stop after creating plans, wireframes, documentation, or mockups. Implement the complete working application.
+The architecture below is settled. This specification defines what is to be built rather than a proposal to be redesigned, and the deliverable is a complete working application rather than further plans, wireframes, or mockups.
 
 ---
 
@@ -1221,25 +1219,3 @@ The implementation is complete only when:
 - Runtime has no internet dependency.
 - Tests pass.
 - Documentation is complete.
-
----
-
-# 29. Final Response Required from Claude
-
-After implementation, provide:
-
-1. Concise implementation summary
-2. Final folder structure
-3. Installation commands
-4. Run commands
-5. Database seed/reset commands
-6. Test commands
-7. Implemented screen list
-8. Mock/real provider switching explanation
-9. Files to update when the final model is ready
-10. Known limitations
-11. Confirmation of which commands were actually run
-12. Confirmation of test results
-13. Screenshot locations
-
-Do not respond with another architecture plan. Implement the complete application.
