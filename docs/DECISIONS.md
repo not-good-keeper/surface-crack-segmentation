@@ -177,6 +177,33 @@ The consequences are followed through rather than left implicit:
 
 This is a reduction in scope and it is also the honest position: the system takes on the **search** load, which is what causes inspector fatigue, and leaves **judgement** with a person.
 
+### ADR-022 addendum — why 512 failed, established from the data rather than the run
+
+The run told us 512 does not help. It did not tell us why, and the stated reason above --
+that a 4 px crack falls below the sampling limit at 256 -- turns out to be false. Measured
+directly on the 156 `test_factory` masks, with no model involved:
+
+| | |
+|---|---|
+| masks that vanish entirely at 256 | **0 of 156** |
+| median downscale | 2.0x (p90 4.9x) |
+| median defect width **after** the resize | **5.14 px** |
+| images whose widest point is under 2 px | 1.3 % |
+| images whose widest point is under 1 px | **0.0 %** |
+
+Defects survive the resize comfortably. Nothing was destroyed, so nothing could be
+recovered -- which is why 512 gained nothing, why multi-scale inference at 384 lost, and
+why the tiled-training experiment recommended above **should not be run**: it targets a
+bottleneck that does not exist.
+
+Meanwhile 19.9 % of those same images score below 0.30. The model is failing on defects
+that are plainly visible at its own input resolution. That is a learning or capacity
+problem, not a sampling one, and it is where the remaining effort belongs.
+
+The general lesson is the one worth keeping: a plausible mechanism and a confirming
+experiment are not the same as a demonstrated cause. The 512 run agreed with the
+hypothesis by failing to contradict it, and the hypothesis was still wrong.
+
 ## ADR-021 — Test share cut from 15 % to 5 %
 
 Phase 1 §13.4 specified 70/15/15. The frozen split is 80/15/5, stratified at group level by material × foreground quartile.
