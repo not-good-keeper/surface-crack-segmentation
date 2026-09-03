@@ -211,6 +211,11 @@ def main() -> int:
                     help="warm-start from a checkpoint (.pt or .best.pt). The network "
                          "is fully convolutional, so weights learned at one input size "
                          "load at another and only the scale has to be relearned")
+    ap.add_argument("--factory-frac", type=float, default=0.0,
+                    help="quota of positive samples drawn from factory materials. The "
+                         "training pool is ~70 percent civil surfaces whose cracks are "
+                         "large, while the headline split is fine factory defects; "
+                         "0.0 keeps the historical mix")
     ap.add_argument("--rgb", action="store_true",
                     help="feed RGB, the order the ImageNet-pretrained stem expects. "
                          "Runs up to V12 fed BGR; omit to reproduce them")
@@ -246,7 +251,8 @@ def main() -> int:
 
     ds_kw = dict(classes=args.classes, camera_profile=args.camera_profile,
                  scratch_frac=args.scratch_frac, prep=args.prep,
-                 resize=args.resize, size=args.size, rgb=args.rgb)
+                 resize=args.resize, size=args.size, rgb=args.rgb,
+                 factory_frac=args.factory_frac)
     tr = CrackPatches("train", train=True, synth_dir=args.synth,
                       synth_frac=args.synth_frac, synth_kinds=args.synth_kinds,
                       exclude_materials=args.exclude_materials, seed=args.seed,

@@ -22,12 +22,19 @@ ROLE_CLASS = {"positive": CRACK, "scratch": SCRATCH}
 KIND_CLASS = {"crack": CRACK, "scratch": SCRATCH}
 
 
+# Materials the product is built to inspect (ARCHITECTURE section 2). Civil surfaces are
+# auxiliary pre-training evidence (ADR-002), not deployment targets, so they are absent
+# here on purpose.
+FACTORY_MATERIALS = ("steel", "plastic", "ceramic", "glass", "metal", "epoxy",
+                     "pharma_capsule")
+
 class CrackPatches(Dataset):
     def __init__(self, split, train=False, classes=1, size=256, length=None,
                  seed=0, pos_frac=0.65, exclude_materials=(),
                  camera_aug=False, camera_profile="conveyor",
                  synth_dir=None, synth_frac=0.5, synth_kinds=None,
-                 scratch_frac=0.35, prep=None, resize=False, rgb=False):
+                 scratch_frac=0.35, prep=None, resize=False, rgb=False,
+                 factory_frac=0.0):
         self.size, self.train, self.pos_frac = size, train, pos_frac
         # Whole frame scaled to `size`, instead of a crack-centred crop at native scale.
         # The crop path trains and scores on windows that always contain a defect, so it
@@ -77,6 +84,34 @@ class CrackPatches(Dataset):
             role = self.pos.role.to_numpy()
             self.pos_by_cls = {CRACK: np.flatnonzero(role == "positive"),
                                SCRATCH: np.flatnonzero(role == "scratch")}
+
+        # Factory quota, for the same reason and by the same mechanism as the scratch
+        # quota above (ADR-012: rebalance at the sampler, never in the loss).
+        #
+        # The training pool is ~70 % asphalt and plaster -- civil crack sets whose
+        # defects are large -- while the headline split is fine factory defects. The
+        # two distributions are far apart: median defect area is 0.0207 of the frame in
+        # training against 0.0055 in test_factory, and 13 % of training positives are
+        # under 0.005 against 47 % of test images. The model scores 0.6315 clDice above
+        # that line and 0.5285 below it.
+        #
+        # Per material the same relationship holds without being asked to: plastic has
+        # 90 % small-defect training images and is the best-scoring material (0.681),
+        # steel has 6 % and is the worst of the seen ones (0.527). Sampling factory
+        # materials harder closes the material gap and the defect-size gap together,
+        # which is why this is keyed on material rather than directly on defect size.
+        #
+        # 0.0 reproduces every earlier run exactly.
+        self.factory_frac = factory_frac
+        self.pos_factory = {}
+        if classes > 1 and factory_frac > 0:
+            mat = self.pos.material.astype(str).to_numpy()
+            is_f = np.isin(mat, FACTORY_MATERIALS)
+            for c, idx in self.pos_by_cls.items():
+                sub = idx[is_f[idx]]
+                # A class with no factory rows falls back to the unrestricted pool
+                # rather than sampling nothing at all.
+                self.pos_factory[c] = sub if len(sub) else idx
 
         self.synth = None
         self.synth_by_kind = {}
@@ -247,6 +282,9 @@ class CrackPatches(Dataset):
             if want_pos and self.pos_by_cls:
                 want = SCRATCH if rng.random() < self.scratch_frac else CRACK
                 cand = self.pos_by_cls.get(want)
+                if (self.factory_frac > 0 and self.pos_factory
+                        and rng.random() < self.factory_frac):
+                    cand = self.pos_factory.get(want, cand)
                 if cand is not None and len(cand):
                     sel = cand
             if not len(pool):
