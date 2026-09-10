@@ -16,8 +16,8 @@ A two-person hackathon project (Team VISION 404). The split of work:
 |---|---|
 | Dataset pipeline, synthetic compositor, corpus QA and splits — `dataset/`, `defectforge/` | Nethi Kushala Kumar |
 | Model training, metrics, ablations, evaluation and ONNX export — `bench/`, `experiments/` | Nethi Kushala Kumar |
-| Inference core and Phase 2 web application — `app/`, `scripts/`, `tests/` | Nethi Kushala Kumar |
-| Analytics dashboard, container hosting and deployment | Nethi Kushala Kumar |
+| Inference core and Phase 2 application — `app/`, `scripts/`, `tests/` | Nethi Kushala Kumar  |
+| Analytics dashboard, container hosting and deployment | Kanishk Rungta |
 | Phase 1/2/3 project documents — `CV_Hackathon - Phase *.pdf` | Kanishk Rungta |
 
 The commit history here is the original authored record — the system was built across
